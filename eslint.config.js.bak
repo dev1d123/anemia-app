@@ -1,0 +1,25 @@
+module.exports = [
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.expo/**",
+      "**/web-build/**",
+      "**/build/**",
+      "frontend/babel.config.js",
+      "frontend/metro.config.js"
+    ]
+  },
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module"
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-console": "off",
+      "semi": ["error", "always"]
+    }
+  }
+];
