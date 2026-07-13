@@ -12,6 +12,7 @@ interface TextFieldProps {
   autoCapitalize?: React.ComponentProps<typeof TextInput>['autoCapitalize'];
   secureTextEntry?: boolean;
   onToggleSecure?: () => void;
+  editable?: boolean;
 }
 
 export const TextField: React.FC<TextFieldProps> = ({
@@ -23,11 +24,12 @@ export const TextField: React.FC<TextFieldProps> = ({
   autoCapitalize = 'none',
   secureTextEntry = false,
   onToggleSecure,
+  editable = true,
 }) => {
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputShell}>
+      <View style={[styles.inputShell, !editable && styles.disabledInputShell]}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -37,6 +39,7 @@ export const TextField: React.FC<TextFieldProps> = ({
           autoCapitalize={autoCapitalize}
           secureTextEntry={secureTextEntry}
           style={styles.input}
+          editable={editable}
         />
         {onToggleSecure && (
           <TouchableOpacity style={styles.iconButton} onPress={onToggleSecure} activeOpacity={0.7}>
@@ -70,6 +73,10 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
     paddingRight: 10,
     minHeight: 54,
+  },
+  disabledInputShell: {
+    backgroundColor: COLORS.background,
+    opacity: 0.7,
   },
   input: {
     flex: 1,

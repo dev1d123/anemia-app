@@ -12,14 +12,28 @@ import { DiagnosticScreen } from './src/screens/DiagnosticScreen';
 import { NutritionScreen } from './src/screens/NutritionScreen';
 import { PreventionScreen } from './src/screens/PreventionScreen';
 import { SyncScreen } from './src/screens/SyncScreen';
+import { authService, Session } from './src/services/authService';
 
 type ScreenName = 'splash' | 'login' | 'register' | 'home' | 'diagnostic' | 'nutrition' | 'prevention' | 'sync';
 
 export default function App() {
   const [screenStack, setScreenStack] = useState<ScreenName[]>(['splash']);
   const [activePatient, setActivePatient] = useState<Patient>(MOCK_PATIENTS[0]);
+  const [session, setSession] = useState<Session | null>(null);
 
   const currentScreen = screenStack[screenStack.length - 1];
+
+  // Inicializar base de datos local y verificar sesión activa
+  useEffect(() => {
+    const initialize = async () => {
+      await authService.initializeUsers();
+      const currentSession = await authService.getCurrentSession();
+      if (currentSession) {
+        setSession(currentSession);
+      }
+    };
+    initialize();
+  }, []);
 
   const handleSelectPatient = (patient: Patient) => {
     setActivePatient(patient);
@@ -39,20 +53,28 @@ export default function App() {
     );
   };
 
-  useEffect(() => {
-    if (currentScreen !== 'splash') {
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      replaceScreen('login');
-    }, 3000);
-
-    return () => clearTimeout(timeoutId);
-  }, [currentScreen]);
-
-  const openHome = () => {
+  const handleLoginSuccess = async () => {
+    const currentSession = await authService.getCurrentSession();
+    setSession(currentSession);
     replaceScreen('home');
+  };
+
+  const handleRegisterSuccess = async () => {
+    const currentSession = await authService.getCurrentSession();
+    setSession(currentSession);
+    replaceScreen('home');
+  };
+
+  const handleGuestAccess = async () => {
+    const currentSession = await authService.getCurrentSession();
+    setSession(currentSession);
+    replaceScreen('home');
+  };
+
+  const handleLogout = async () => {
+    await authService.logout();
+    setSession(null);
+    replaceScreen('login');
   };
 
   const renderActiveScreen = () => {
@@ -100,11 +122,19 @@ export default function App() {
     }
   };
 
+  const handleSplashFinish = () => {
+    if (session) {
+      replaceScreen('home');
+    } else {
+      replaceScreen('login');
+    }
+  };
+
   if (currentScreen === 'splash') {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
-        <SplashScreen onFinish={() => replaceScreen('login')} />
+        <SplashScreen onFinish={handleSplashFinish} />
       </SafeAreaView>
     );
   }
@@ -114,9 +144,9 @@ export default function App() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
         <LoginScreen
-          onLogin={openHome}
+          onLogin={handleLoginSuccess}
           onGoToRegister={() => replaceScreen('register')}
-          onGuestAccess={openHome}
+          onGuestAccess={handleGuestAccess}
         />
       </SafeAreaView>
     );
@@ -127,9 +157,9 @@ export default function App() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
         <RegisterScreen
-          onCreateAccount={openHome}
+          onCreateAccount={handleRegisterSuccess}
           onGoToLogin={() => replaceScreen('login')}
-          onGuestAccess={openHome}
+          onGuestAccess={handleGuestAccess}
         />
       </SafeAreaView>
     );
@@ -139,7 +169,13 @@ export default function App() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
-        <Header title={getScreenTitle()} subtitle={getScreenSubtitle()} showBackButton={false} />
+        <Header 
+          title={getScreenTitle()} 
+          subtitle={getScreenSubtitle()} 
+          showBackButton={false} 
+          userName={session?.isGuest ? 'Invitado' : session?.user?.name}
+          onLogout={handleLogout}
+        />
         <View style={styles.mainContainer}>
           <HomeScreen
             selectedPatient={activePatient}
@@ -157,8 +193,10 @@ export default function App() {
       <Header
         title={getScreenTitle()}
         subtitle={getScreenSubtitle()}
-        showBackButton={currentScreen !== 'home'}
+        showBackButton={true}
         onBackPress={goBack}
+        userName={session?.isGuest ? 'Invitado' : session?.user?.name}
+        onLogout={handleLogout}
       />
       <View style={styles.activeScreenContainer}>{renderActiveScreen()}</View>
     </SafeAreaView>

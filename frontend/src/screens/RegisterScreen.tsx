@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
 import { TextField } from '../components/auth/TextField';
+import { authService } from '../services/authService';
 
 interface RegisterScreenProps {
   onCreateAccount: () => void;
@@ -16,14 +17,42 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onCreateAccount,
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
       Alert.alert('Campos requeridos', 'Completa tu nombre, correo electrónico y contraseña para crear la cuenta.');
       return;
     }
 
-    onCreateAccount();
+    if (password.length < 6) {
+      Alert.alert('Contraseña débil', 'La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authService.register(fullName, email, password);
+      Alert.alert('Registro exitoso', 'Tu cuenta local ha sido creada.', [
+        { text: 'Aceptar', onPress: () => onCreateAccount() }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error de registro', error.message || 'No se pudo crear la cuenta localmente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    setIsLoading(true);
+    try {
+      await authService.guestLogin();
+      onGuestAccess();
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo acceder como invitado localmente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,6 +76,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onCreateAccount,
             onChangeText={setFullName}
             placeholder="Tu nombre y apellido"
             autoCapitalize="words"
+            editable={!isLoading}
           />
           <TextField
             label="Correo electrónico"
@@ -55,6 +85,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onCreateAccount,
             placeholder="nombre@correo.com"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!isLoading}
           />
           <TextField
             label="Contraseña"
@@ -63,15 +94,22 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onCreateAccount,
             placeholder="Crea una contraseña"
             secureTextEntry={!showPassword}
             onToggleSecure={() => setShowPassword((previousValue) => !previousValue)}
+            editable={!isLoading}
           />
 
-          <PrimaryButton title="Crear Cuenta" onPress={handleSubmit} iconName="sparkles-outline" />
+          <PrimaryButton 
+            title="Crear Cuenta" 
+            onPress={handleSubmit} 
+            iconName="sparkles-outline" 
+            loading={isLoading}
+          />
 
           <PrimaryButton
             title="Saltar por ahora"
-            onPress={onGuestAccess}
+            onPress={handleGuestAccess}
             variant="secondary"
             iconName="arrow-forward-outline"
+            disabled={isLoading}
           />
 
           <TouchableOpacity style={styles.linkRow} onPress={onGoToLogin} activeOpacity={0.75}>

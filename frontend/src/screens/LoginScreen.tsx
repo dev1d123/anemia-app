@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
 import { PrimaryButton } from '../components/auth/PrimaryButton';
 import { TextField } from '../components/auth/TextField';
+import { authService } from '../services/authService';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -15,14 +16,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGoToRegiste
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Campos requeridos', 'Completa tu correo electrónico y contraseña para continuar.');
       return;
     }
 
-    onLogin();
+    setIsLoading(true);
+    try {
+      await authService.login(email, password);
+      onLogin();
+    } catch (error: any) {
+      Alert.alert('Error de acceso', error.message || 'Ocurrió un error inesperado.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    setIsLoading(true);
+    try {
+      await authService.guestLogin();
+      onGuestAccess();
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo acceder como invitado localmente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,6 +69,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGoToRegiste
             placeholder="nombre@correo.com"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!isLoading}
           />
           <TextField
             label="Contraseña"
@@ -55,18 +78,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onGoToRegiste
             placeholder="Ingresa tu contraseña"
             secureTextEntry={!showPassword}
             onToggleSecure={() => setShowPassword((previousValue) => !previousValue)}
+            editable={!isLoading}
           />
 
-          <PrimaryButton title="Iniciar Sesión" onPress={handleSubmit} iconName="log-in-outline" />
+          <PrimaryButton 
+            title="Iniciar Sesión" 
+            onPress={handleSubmit} 
+            iconName="log-in-outline" 
+            loading={isLoading}
+          />
 
           <PrimaryButton
             title="Explorar como invitado"
-            onPress={onGuestAccess}
+            onPress={handleGuestAccess}
             variant="secondary"
             iconName="compass-outline"
+            disabled={isLoading}
           />
 
-          <TouchableOpacity style={styles.linkRow} onPress={onGoToRegister} activeOpacity={0.75}>
+          <TouchableOpacity 
+            style={styles.linkRow} 
+            onPress={onGoToRegister} 
+            activeOpacity={0.75}
+            disabled={isLoading}
+          >
             <Text style={styles.linkPrefix}>¿No tienes cuenta?</Text>
             <Text style={styles.linkAction}> Regístrate aquí</Text>
           </TouchableOpacity>
