@@ -13,10 +13,20 @@ import { NutritionScreen } from './src/screens/NutritionScreen';
 import { PreventionScreen } from './src/screens/PreventionScreen';
 import { SyncScreen } from './src/screens/SyncScreen';
 import { authService, Session } from './src/services/authService';
+import { SQLiteProvider } from 'expo-sqlite';
+import { dbService } from './src/services/dbService';
 
 type ScreenName = 'splash' | 'login' | 'register' | 'home' | 'diagnostic' | 'nutrition' | 'prevention' | 'sync';
 
 export default function App() {
+  return (
+    <SQLiteProvider databaseName="anemia.db" onInit={dbService.initializeDatabase}>
+      <AppContent />
+    </SQLiteProvider>
+  );
+}
+
+function AppContent() {
   const [screenStack, setScreenStack] = useState<ScreenName[]>(['splash']);
   const [activePatient, setActivePatient] = useState<Patient>(MOCK_PATIENTS[0]);
   const [session, setSession] = useState<Session | null>(null);
