@@ -1,23 +1,58 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, SafeAreaView, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from './src/theme/colors';
 import { Header } from './src/components/Header';
 import { PatientSelector, Patient, MOCK_PATIENTS } from './src/components/PatientSelector';
-import { ModuleCard } from './src/components/ModuleCard';
+import { SplashScreen } from './src/screens/SplashScreen';
+import { LoginScreen } from './src/screens/LoginScreen';
+import { RegisterScreen } from './src/screens/RegisterScreen';
+import { HomeScreen } from './src/screens/HomeScreen';
 import { DiagnosticScreen } from './src/screens/DiagnosticScreen';
 import { NutritionScreen } from './src/screens/NutritionScreen';
 import { PreventionScreen } from './src/screens/PreventionScreen';
 import { SyncScreen } from './src/screens/SyncScreen';
 
-type ScreenName = 'home' | 'diagnostic' | 'nutrition' | 'prevention' | 'sync';
+type ScreenName = 'splash' | 'login' | 'register' | 'home' | 'diagnostic' | 'nutrition' | 'prevention' | 'sync';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenName>('home');
+  const [screenStack, setScreenStack] = useState<ScreenName[]>(['splash']);
   const [activePatient, setActivePatient] = useState<Patient>(MOCK_PATIENTS[0]);
+
+  const currentScreen = screenStack[screenStack.length - 1];
 
   const handleSelectPatient = (patient: Patient) => {
     setActivePatient(patient);
+  };
+
+  const pushScreen = (screen: ScreenName) => {
+    setScreenStack((previousStack) => [...previousStack, screen]);
+  };
+
+  const replaceScreen = (screen: ScreenName) => {
+    setScreenStack([screen]);
+  };
+
+  const goBack = () => {
+    setScreenStack((previousStack) =>
+      previousStack.length > 1 ? previousStack.slice(0, -1) : previousStack,
+    );
+  };
+
+  useEffect(() => {
+    if (currentScreen !== 'splash') {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      replaceScreen('login');
+    }, 3000);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentScreen]);
+
+  const openHome = () => {
+    replaceScreen('home');
   };
 
   const renderActiveScreen = () => {
@@ -65,6 +100,57 @@ export default function App() {
     }
   };
 
+  if (currentScreen === 'splash') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <SplashScreen onFinish={() => replaceScreen('login')} />
+      </SafeAreaView>
+    );
+  }
+
+  if (currentScreen === 'login') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <LoginScreen
+          onLogin={openHome}
+          onGoToRegister={() => replaceScreen('register')}
+          onGuestAccess={openHome}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (currentScreen === 'register') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <RegisterScreen
+          onCreateAccount={openHome}
+          onGoToLogin={() => replaceScreen('login')}
+          onGuestAccess={openHome}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (currentScreen === 'home') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <Header title={getScreenTitle()} subtitle={getScreenSubtitle()} showBackButton={false} />
+        <View style={styles.mainContainer}>
+          <HomeScreen
+            selectedPatient={activePatient}
+            onSelectPatient={handleSelectPatient}
+            onOpenModule={pushScreen}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -72,71 +158,9 @@ export default function App() {
         title={getScreenTitle()}
         subtitle={getScreenSubtitle()}
         showBackButton={currentScreen !== 'home'}
-        onBackPress={() => setCurrentScreen('home')}
+        onBackPress={goBack}
       />
-
-      {currentScreen === 'home' ? (
-        <View style={styles.mainContainer}>
-          {/* Selector de Pacientes */}
-          <PatientSelector
-            selectedPatient={activePatient}
-            onSelectPatient={handleSelectPatient}
-          />
-
-          <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.menuTitle}>Módulos Disponibles</Text>
-
-            <ModuleCard
-              title="Diagnóstico Ocular"
-              description="Evaluación de conjuntiva ocular mediante inteligencia artificial offline."
-              iconName="camera"
-              iconBgColor={COLORS.primaryLight}
-              iconColor={COLORS.primary}
-              statusText="Listo Offline"
-              statusType="success"
-              onPress={() => setCurrentScreen('diagnostic')}
-            />
-
-            <ModuleCard
-              title="Nutrición Rural"
-              description="Sugerencias de alimentación infantil con insumos locales y dosis de hierro."
-              iconName="restaurant"
-              iconBgColor={COLORS.secondaryLight}
-              iconColor={COLORS.secondary}
-              statusText="Personalizado"
-              statusType="info"
-              onPress={() => setCurrentScreen('nutrition')}
-            />
-
-            <ModuleCard
-              title="Evaluación de Riesgo"
-              description="Encuesta predictiva sobre determinantes sociales y alertas sanitarias."
-              iconName="shield-checkmark"
-              iconBgColor={COLORS.accentLight}
-              iconColor={COLORS.accent}
-              statusText="Pendiente"
-              statusType="warning"
-              onPress={() => setCurrentScreen('prevention')}
-            />
-
-            <ModuleCard
-              title="Sincronización Mesh"
-              description="Transmisión y recepción de historiales clínicos sin internet vía LoRa."
-              iconName="sync"
-              iconBgColor={COLORS.primaryLight}
-              iconColor={COLORS.primary}
-              statusText="Cola Activa (3)"
-              statusType="info"
-              onPress={() => setCurrentScreen('sync')}
-            />
-          </ScrollView>
-        </View>
-      ) : (
-        <View style={styles.activeScreenContainer}>{renderActiveScreen()}</View>
-      )}
+      <View style={styles.activeScreenContainer}>{renderActiveScreen()}</View>
     </SafeAreaView>
   );
 }
@@ -148,20 +172,6 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
-  },
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 30,
-  },
-  menuTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 15,
-    marginTop: 10,
   },
   activeScreenContainer: {
     flex: 1,
