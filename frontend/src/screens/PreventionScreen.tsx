@@ -32,14 +32,20 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
   const [saved, setSaved] = useState(false);
   const [isModelReady, setIsModelReady] = useState(false);
 
+  // Cargar modelo (Gemma 4)
   useEffect(() => {
     const loadModel = async () => {
       try {
         await gemmaService.loadModel();
-        setIsModelReady(gemmaService.isModelReady());
-        console.log('Gemma 4 listo para usar');
+        const ready = gemmaService.isModelReady();
+        setIsModelReady(ready);
+        if (ready) {
+          console.log('Gemma 4 listo para usar');
+        } else {
+          console.log('Modo simulación activado');
+        }
       } catch (error) {
-        console.log('Modo simulacion activado');
+        console.log('Error cargando modelo:', error);
         setIsModelReady(false);
       }
     };
@@ -72,11 +78,11 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
     } else {
       Alert.alert(
         'Seleccionar imagen',
-        'Como quieres obtener la imagen?',
+        '¿Cómo quieres obtener la imagen?',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Tomar Foto', onPress: handleTakePhoto },
-          { text: 'Elegir de Galeria', onPress: handlePickFromGallery },
+          { text: 'Elegir de Galería', onPress: handlePickFromGallery },
         ]
       );
     }
@@ -94,7 +100,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
         setStep('idle');
       }
     } catch (error) {
-      Alert.alert('Error', 'Ocurrio un error al tomar la foto.');
+      Alert.alert('Error', 'Ocurrió un error al tomar la foto.');
       setStep('idle');
     }
   };
@@ -111,7 +117,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
         setStep('idle');
       }
     } catch (error) {
-      Alert.alert('Error', 'Ocurrio un error al cargar la imagen.');
+      Alert.alert('Error', 'Ocurrió un error al cargar la imagen.');
       setStep('idle');
     }
   };
@@ -147,10 +153,10 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
       setSaved(true);
       Alert.alert(
         'Guardado Exitoso',
-        `Evaluacion de entorno para ${patient.name} guardada localmente. Pendiente de sincronizacion Mesh.`
+        `Evaluación de entorno para ${patient.name} guardada localmente. Pendiente de sincronización Mesh.`
       );
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar la evaluacion.');
+      Alert.alert('Error', 'No se pudo guardar la evaluación.');
     }
   };
 
@@ -181,29 +187,23 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
                 <Text>Basura acumulada</Text>
               </View>
               <View style={styles.riskItem}>
-                <Text>Agua sin proteccion</Text>
+                <Text>Agua sin protección</Text>
               </View>
             </View>
 
             <View style={styles.modelStatus}>
               <Text style={styles.modelStatusText}>
-                {isModelReady ? 'Gemma 4: Listo' : 'Modo simulacion (sin IA)'}
+                {isModelReady ? 'Gemma 4: Listo' : 'Modo simulación (sin IA)'}
               </Text>
             </View>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.cameraButton]} 
-                onPress={showImageSourceOptions}
-              >
-                <Ionicons name="camera" size={24} color={COLORS.white} />
-                <Text style={styles.actionButtonText}>Seleccionar Imagen</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.hintText}>
-              Si la camara no funciona, puedes cargar una foto desde la galeria
-            </Text>
+            <TouchableOpacity 
+              style={styles.captureButton} 
+              onPress={showImageSourceOptions}
+            >
+              <Ionicons name="camera" size={24} color={COLORS.white} />
+              <Text style={styles.captureButtonText}>Seleccionar Imagen</Text>
+            </TouchableOpacity>
           </View>
         );
 
@@ -213,7 +213,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
             <View style={styles.mockCameraView}>
               <ActivityIndicator size="large" color={COLORS.accent} />
               <Text style={styles.cameraText}>Preparando imagen...</Text>
-              <Text style={styles.cameraSubText}>Asegurate de tener buena iluminacion</Text>
+              <Text style={styles.cameraSubText}>Asegúrate de tener buena iluminación</Text>
             </View>
           </View>
         );
@@ -224,14 +224,9 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
             <View style={styles.mockCameraView}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.cameraText}>
-                {isModelReady ? 'Gemma 4 analizando el entorno...' : 'Simulando analisis...'}
+                {isModelReady ? 'Gemma 4 analizando el entorno...' : 'Simulando análisis...'}
               </Text>
               <Text style={styles.cameraSubText}>Esto puede tomar unos segundos</Text>
-              {!isModelReady && (
-                <Text style={styles.warningText}>
-                  Modo simulacion activo (sin modelo IA)
-                </Text>
-              )}
             </View>
           </View>
         );
@@ -276,7 +271,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
                 {riskResult.hasUnprotectedWater && (
                   <View style={styles.detailItem}>
                     <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
-                    <Text style={styles.detailText}>Agua sin proteccion</Text>
+                    <Text style={styles.detailText}>Agua sin protección</Text>
                   </View>
                 )}
               </View>
@@ -293,7 +288,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
 
               <View style={styles.modelUsedContainer}>
                 <Text style={styles.modelUsedText}>
-                  {isModelReady ? 'Analizado con Gemma 4' : 'Analisis simulado'}
+                  {isModelReady ? 'Analizado con Gemma 4' : 'Análisis simulado'}
                 </Text>
               </View>
 
@@ -309,7 +304,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
                     color={COLORS.white}
                   />
                   <Text style={styles.saveButtonText}>
-                    {saved ? 'Guardado Local' : 'Guardar Evaluacion'}
+                    {saved ? 'Guardado Local' : 'Guardar Evaluación'}
                   </Text>
                 </TouchableOpacity>
 
@@ -329,10 +324,10 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Prevencion Ambiental</Text>
+        <Text style={styles.sectionTitle}>Prevención Ambiental</Text>
         <Text style={styles.sectionDesc}>
-          Analiza el entorno del hogar para detectar riesgos de reinfeccion por parasitos
-          y enfermedades diarreicas. Todo el analisis es offline con Gemma 4.
+          Analiza el entorno del hogar para detectar riesgos de reinfección por parásitos
+          y enfermedades diarreicas usando Gemma 4 AI.
         </Text>
 
         {renderContent()}
@@ -341,11 +336,11 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
       <View style={[styles.card, styles.infoCard]}>
         <Ionicons name="information-circle" size={24} color={COLORS.primary} />
         <View style={styles.infoContent}>
-          <Text style={styles.infoTitle}>Que busca la IA?</Text>
+          <Text style={styles.infoTitle}>¿Cómo funciona?</Text>
           <Text style={styles.infoText}>
             Gemma 4 analiza la imagen y detecta: agua estancada, heces de animales,
-            basura acumulada y fuentes de agua sin proteccion. Estos son los principales
-            factores de reinfeccion en zonas rurales.
+            basura acumulada y fuentes de agua sin protección. Estos son los principales
+            factores de reinfección en zonas rurales.
           </Text>
         </View>
       </View>
@@ -418,34 +413,20 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  actionButton: {
+  captureButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.primary,
     paddingVertical: 14,
-    paddingHorizontal: 30,
+    paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
-    flex: 1,
   },
-  cameraButton: {
-    backgroundColor: COLORS.primary,
-  },
-  actionButtonText: {
+  captureButtonText: {
     color: COLORS.white,
     fontWeight: '700',
     fontSize: 16,
-  },
-  hintText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   mockCameraView: {
     width: '100%',
@@ -469,12 +450,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     marginTop: 8,
-  },
-  warningText: {
-    fontSize: 12,
-    color: COLORS.accent,
-    marginTop: 8,
-    fontWeight: '600',
   },
   resultContainer: {
     width: '100%',

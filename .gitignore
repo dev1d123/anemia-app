@@ -47,3 +47,4 @@ Thumbs.db
 *.sw?
 context.md
 script.py
+.env
