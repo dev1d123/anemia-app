@@ -1,171 +1,351 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Switch, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  ActionSheetIOS,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
 import { Patient } from '../components/PatientSelector';
+import { gemmaService } from '../services/gemma_service';
+import { storageService } from '../services/storage_service';
+import { riskAnalyzer } from '../services/risk_analyzer';
+import { EnvironmentRisk } from '../models/environment_risk';
 
 interface PreventionScreenProps {
   patient: Patient;
 }
 
-export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) => {
-  const [hasWater, setHasWater] = useState(false);
-  const [hasSanitation, setHasSanitation] = useState(false);
-  const [hasCred, setHasCred] = useState(true);
-  const [hasSupplement, setHasSupplement] = useState(false);
+type Step = 'idle' | 'capturing' | 'analyzing' | 'result';
 
-  const [riskLevel, setRiskLevel] = useState<'Low' | 'Medium' | 'High' | null>(null);
+export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) => {
+  const [step, setStep] = useState<Step>('idle');
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [riskResult, setRiskResult] = useState<EnvironmentRisk | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [isModelReady, setIsModelReady] = useState(false);
 
   useEffect(() => {
-    // Restablecer al cambiar de paciente
-    setRiskLevel(null);
+    const loadModel = async () => {
+      try {
+        await gemmaService.loadModel();
+        setIsModelReady(gemmaService.isModelReady());
+        console.log('Gemma 4 listo para usar');
+      } catch (error) {
+        console.log('Modo simulacion activado');
+        setIsModelReady(false);
+      }
+    };
+    loadModel();
+  }, []);
+
+  useEffect(() => {
+    setStep('idle');
+    setImagePath(null);
+    setRiskResult(null);
+    setSaved(false);
   }, [patient]);
 
-  const handleCalculateRisk = () => {
-    // Lógica simple de cálculo de riesgo ambiental/nutricional
-    let negativePoints = 0;
-    if (!hasWater) negativePoints++;
-    if (!hasSanitation) negativePoints++;
-    if (!hasCred) negativePoints++;
-    if (!hasSupplement) negativePoints++;
-
-    if (patient.hbStatus === 'Severa') negativePoints += 2;
-    else if (patient.hbStatus === 'Moderada') negativePoints += 1;
-
-    if (negativePoints >= 4) {
-      setRiskLevel('High');
-    } else if (negativePoints >= 2) {
-      setRiskLevel('Medium');
+  const showImageSourceOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancelar', 'Tomar Foto', 'Elegir de Galeria'],
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: -1,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            handleTakePhoto();
+          } else if (buttonIndex === 2) {
+            handlePickFromGallery();
+          }
+        }
+      );
     } else {
-      setRiskLevel('Low');
+      Alert.alert(
+        'Seleccionar imagen',
+        'Como quieres obtener la imagen?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Tomar Foto', onPress: handleTakePhoto },
+          { text: 'Elegir de Galeria', onPress: handlePickFromGallery },
+        ]
+      );
     }
   };
 
-  const getRiskStyle = () => {
-    switch (riskLevel) {
-      case 'Low':
-        return {
-          bg: COLORS.secondaryLight,
-          text: COLORS.secondary,
-          desc: 'Entorno controlado y protector. Mantenga prácticas higiénicas estándar.',
-          icon: 'checkmark-circle',
-        };
-      case 'Medium':
-        return {
-          bg: '#FFF3CD',
-          text: '#856404',
-          desc: 'Riesgo moderado. Se recomienda hervir agua y monitorear suplementos.',
-          icon: 'alert-circle',
-        };
-      case 'High':
-        return {
-          bg: COLORS.accentLight,
-          text: COLORS.accent,
-          desc: 'Riesgo alto de parasitosis o recaída de anemia. Requiere intervención inmediata del promotor de salud.',
-          icon: 'warning',
-        };
+  const handleTakePhoto = async () => {
+    try {
+      setStep('capturing');
+      const path = await gemmaService.takePicture();
+      if (path) {
+        setImagePath(path);
+        await analyzeImage(path);
+      } else {
+        Alert.alert('Error', 'No se pudo tomar la foto. Intenta nuevamente.');
+        setStep('idle');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Ocurrio un error al tomar la foto.');
+      setStep('idle');
+    }
+  };
+
+  const handlePickFromGallery = async () => {
+    try {
+      setStep('capturing');
+      const path = await gemmaService.pickImageFromGallery();
+      if (path) {
+        setImagePath(path);
+        await analyzeImage(path);
+      } else {
+        Alert.alert('Error', 'No se pudo cargar la imagen. Intenta nuevamente.');
+        setStep('idle');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Ocurrio un error al cargar la imagen.');
+      setStep('idle');
+    }
+  };
+
+  const analyzeImage = async (path: string) => {
+    try {
+      setStep('analyzing');
+      setIsLoading(true);
+
+      const gemmaResult = await gemmaService.analyzeImage(path);
+
+      const risk = riskAnalyzer.analyzeRisks({
+        patientId: patient.id,
+        imagePath: path,
+        gemmaResult: gemmaResult,
+      });
+
+      setRiskResult(risk);
+      setStep('result');
+      setIsLoading(false);
+    } catch (error) {
+      Alert.alert('Error', 'Error al analizar la imagen. Intenta nuevamente.');
+      setStep('idle');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!riskResult) return;
+
+    try {
+      await storageService.saveRiskAssessment(riskResult);
+      setSaved(true);
+      Alert.alert(
+        'Guardado Exitoso',
+        `Evaluacion de entorno para ${patient.name} guardada localmente. Pendiente de sincronizacion Mesh.`
+      );
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo guardar la evaluacion.');
+    }
+  };
+
+  const handleRetake = () => {
+    setStep('idle');
+    setImagePath(null);
+    setRiskResult(null);
+    setSaved(false);
+  };
+
+  const renderContent = () => {
+    switch (step) {
+      case 'idle':
+        return (
+          <View style={styles.contentContainer}>
+            <Text style={styles.instructionText}>
+              Toma una foto o selecciona una imagen del entorno del hogar para analizar riesgos sanitarios.
+            </Text>
+            
+            <View style={styles.riskList}>
+              <View style={styles.riskItem}>
+                <Text>Agua estancada</Text>
+              </View>
+              <View style={styles.riskItem}>
+                <Text>Heces de animales</Text>
+              </View>
+              <View style={styles.riskItem}>
+                <Text>Basura acumulada</Text>
+              </View>
+              <View style={styles.riskItem}>
+                <Text>Agua sin proteccion</Text>
+              </View>
+            </View>
+
+            <View style={styles.modelStatus}>
+              <Text style={styles.modelStatusText}>
+                {isModelReady ? 'Gemma 4: Listo' : 'Modo simulacion (sin IA)'}
+              </Text>
+            </View>
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.cameraButton]} 
+                onPress={showImageSourceOptions}
+              >
+                <Ionicons name="camera" size={24} color={COLORS.white} />
+                <Text style={styles.actionButtonText}>Seleccionar Imagen</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.hintText}>
+              Si la camara no funciona, puedes cargar una foto desde la galeria
+            </Text>
+          </View>
+        );
+
+      case 'capturing':
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.mockCameraView}>
+              <ActivityIndicator size="large" color={COLORS.accent} />
+              <Text style={styles.cameraText}>Preparando imagen...</Text>
+              <Text style={styles.cameraSubText}>Asegurate de tener buena iluminacion</Text>
+            </View>
+          </View>
+        );
+
+      case 'analyzing':
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.mockCameraView}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.cameraText}>
+                {isModelReady ? 'Gemma 4 analizando el entorno...' : 'Simulando analisis...'}
+              </Text>
+              <Text style={styles.cameraSubText}>Esto puede tomar unos segundos</Text>
+              {!isModelReady && (
+                <Text style={styles.warningText}>
+                  Modo simulacion activo (sin modelo IA)
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+
+      case 'result':
+        if (!riskResult) return null;
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.resultContainer}>
+              <View style={[
+                styles.riskIndicator,
+                { backgroundColor: riskAnalyzer.getRiskColor(riskResult.riskLevel) }
+              ]}>
+                <Text style={styles.riskEmoji}>
+                  {riskAnalyzer.getRiskEmoji(riskResult.riskLevel)}
+                </Text>
+                <Text style={styles.riskLevelText}>
+                  {riskAnalyzer.getRiskText(riskResult.riskLevel)}
+                </Text>
+              </View>
+
+              <View style={styles.detailsContainer}>
+                <Text style={styles.detailsTitle}>Riesgos Detectados:</Text>
+                {riskResult.hasStagnantWater && (
+                  <View style={styles.detailItem}>
+                    <Ionicons name="water" size={20} color={COLORS.accent} />
+                    <Text style={styles.detailText}>Agua estancada</Text>
+                  </View>
+                )}
+                {riskResult.hasAnimalFeces && (
+                  <View style={styles.detailItem}>
+                    <Ionicons name="paw" size={20} color={COLORS.accent} />
+                    <Text style={styles.detailText}>Heces de animales</Text>
+                  </View>
+                )}
+                {riskResult.hasGarbage && (
+                  <View style={styles.detailItem}>
+                    <Ionicons name="trash" size={20} color={COLORS.accent} />
+                    <Text style={styles.detailText}>Basura acumulada</Text>
+                  </View>
+                )}
+                {riskResult.hasUnprotectedWater && (
+                  <View style={styles.detailItem}>
+                    <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
+                    <Text style={styles.detailText}>Agua sin proteccion</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.recommendationsContainer}>
+                <Text style={styles.recommendationsTitle}>Recomendaciones:</Text>
+                {riskResult.recommendations.map((rec, index) => (
+                  <View key={index} style={styles.recommendationItem}>
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
+                    <Text style={styles.recommendationText}>{rec}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.modelUsedContainer}>
+                <Text style={styles.modelUsedText}>
+                  {isModelReady ? 'Analizado con Gemma 4' : 'Analisis simulado'}
+                </Text>
+              </View>
+
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.saveButton, saved && styles.savedButton]}
+                  onPress={handleSave}
+                  disabled={saved}
+                >
+                  <Ionicons
+                    name={saved ? "checkmark-done-circle" : "save-outline"}
+                    size={20}
+                    color={COLORS.white}
+                  />
+                  <Text style={styles.saveButtonText}>
+                    {saved ? 'Guardado Local' : 'Guardar Evaluacion'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.resetButton} onPress={handleRetake}>
+                  <Text style={styles.resetButtonText}>Re-evaluar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        );
+
       default:
-        return { bg: COLORS.background, text: COLORS.textMuted, desc: '', icon: '' };
+        return null;
     }
   };
-
-  const riskStyle = getRiskStyle();
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} style={styles.container}>
-      {/* Explicación inicial */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Evaluación de Riesgo del Entorno</Text>
+        <Text style={styles.sectionTitle}>Prevencion Ambiental</Text>
         <Text style={styles.sectionDesc}>
-          Formulario predictivo offline para estimar la vulnerabilidad familiar basándose en determinantes sociales de salud (agua, saneamiento y controles médicos).
+          Analiza el entorno del hogar para detectar riesgos de reinfeccion por parasitos
+          y enfermedades diarreicas. Todo el analisis es offline con Gemma 4.
         </Text>
 
-        {/* Cuestionario */}
-        <View style={styles.questionContainer}>
-          <View style={styles.switchRow}>
-            <View style={styles.switchLabelContainer}>
-              <Text style={styles.switchTitle}>¿Agua Potable Segura?</Text>
-              <Text style={styles.switchDesc}>Acceso a agua tratada o hervida en casa</Text>
-            </View>
-            <Switch
-              value={hasWater}
-              onValueChange={setHasWater}
-              trackColor={{ false: COLORS.border, true: COLORS.secondary }}
-              thumbColor={hasWater ? COLORS.white : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchLabelContainer}>
-              <Text style={styles.switchTitle}>¿Saneamiento Básico?</Text>
-              <Text style={styles.switchDesc}>Conexión a desagüe o pozo séptico higiénico</Text>
-            </View>
-            <Switch
-              value={hasSanitation}
-              onValueChange={setHasSanitation}
-              trackColor={{ false: COLORS.border, true: COLORS.secondary }}
-              thumbColor={hasSanitation ? COLORS.white : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchLabelContainer}>
-              <Text style={styles.switchTitle}>¿Controles CRED al día?</Text>
-              <Text style={styles.switchDesc}>Control de crecimiento y desarrollo infantil al día</Text>
-            </View>
-            <Switch
-              value={hasCred}
-              onValueChange={setHasCred}
-              trackColor={{ false: COLORS.border, true: COLORS.secondary }}
-              thumbColor={hasCred ? COLORS.white : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchLabelContainer}>
-              <Text style={styles.switchTitle}>¿Suplemento Regular?</Text>
-              <Text style={styles.switchDesc}>Cumple dosis diaria sin interrupciones</Text>
-            </View>
-            <Switch
-              value={hasSupplement}
-              onValueChange={setHasSupplement}
-              trackColor={{ false: COLORS.border, true: COLORS.secondary }}
-              thumbColor={hasSupplement ? COLORS.white : '#f4f3f4'}
-            />
-          </View>
-        </View>
-
-        {!riskLevel ? (
-          <TouchableOpacity style={styles.calculateBtn} onPress={handleCalculateRisk}>
-            <Ionicons name="calculator-outline" size={20} color={COLORS.white} />
-            <Text style={styles.calculateBtnText}>Evaluar Riesgo Familiar</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={[styles.riskResultBox, { backgroundColor: riskStyle.bg }]}>
-            <View style={styles.riskHeader}>
-              <Ionicons name={riskStyle.icon as keyof typeof Ionicons.glyphMap} size={24} color={riskStyle.text} />
-              <View style={{ marginLeft: 8 }}>
-                <Text style={[styles.riskLabel, { color: riskStyle.text }]}>NIVEL DE RIESGO</Text>
-                <Text style={[styles.riskValue, { color: riskStyle.text }]}>
-                  {riskLevel === 'Low' ? 'BAJO' : riskLevel === 'Medium' ? 'MEDIO' : 'ALTO'}
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.riskDesc, { color: riskStyle.text }]}>{riskStyle.desc}</Text>
-            <TouchableOpacity style={styles.resetBtn} onPress={() => setRiskLevel(null)}>
-              <Text style={[styles.resetBtnText, { color: riskStyle.text }]}>Re-evaluar Encuesta</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {renderContent()}
       </View>
 
-      {/* Alertas preventivas */}
-      <View style={[styles.card, styles.alertCard]}>
-        <Text style={styles.alertCardTitle}>Alertas Epidemiológicas Locales</Text>
-        <View style={styles.alertItem}>
-          <Ionicons name="alert-circle" size={18} color={COLORS.accent} />
-          <Text style={styles.alertText}>
-            En la comunidad actual, el 45% de casos de anemia están asociados a parasitosis intestinal por agua no hervida.
+      <View style={[styles.card, styles.infoCard]}>
+        <Ionicons name="information-circle" size={24} color={COLORS.primary} />
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Que busca la IA?</Text>
+          <Text style={styles.infoText}>
+            Gemma 4 analiza la imagen y detecta: agua estancada, heces de animales,
+            basura acumulada y fuentes de agua sin proteccion. Estos son los principales
+            factores de reinfeccion en zonas rurales.
           </Text>
         </View>
       </View>
@@ -198,7 +378,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.primary,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   sectionDesc: {
     fontSize: 13,
@@ -206,99 +386,227 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 20,
   },
-  questionContainer: {
-    marginBottom: 20,
+  contentContainer: {
+    width: '100%',
   },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.background,
-  },
-  switchLabelContainer: {
-    flex: 1,
-    marginRight: 10,
-  },
-  switchTitle: {
+  instructionText: {
     fontSize: 14,
-    fontWeight: '700',
     color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
   },
-  switchDesc: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 2,
+  riskList: {
+    marginBottom: 16,
   },
-  calculateBtn: {
+  riskItem: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  modelStatus: {
+    backgroundColor: COLORS.primaryLight,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  modelStatusText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
     paddingVertical: 14,
+    paddingHorizontal: 30,
     borderRadius: 12,
     gap: 8,
+    flex: 1,
   },
-  calculateBtnText: {
+  cameraButton: {
+    backgroundColor: COLORS.primary,
+  },
+  actionButtonText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  hintText: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  mockCameraView: {
+    width: '100%',
+    height: 250,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: COLORS.primary,
+    backgroundColor: '#F0F5F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+  },
+  cameraText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginTop: 12,
+  },
+  cameraSubText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 8,
+  },
+  warningText: {
+    fontSize: 12,
+    color: COLORS.accent,
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  resultContainer: {
+    width: '100%',
+  },
+  riskIndicator: {
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  riskEmoji: {
+    fontSize: 48,
+  },
+  riskLevelText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.white,
+    marginTop: 8,
+  },
+  detailsContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  detailsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  detailText: {
+    fontSize: 13,
+    color: COLORS.text,
+  },
+  recommendationsContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  recommendationsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  recommendationText: {
+    fontSize: 13,
+    color: COLORS.text,
+    flex: 1,
+  },
+  modelUsedContainer: {
+    backgroundColor: COLORS.primaryLight,
+    padding: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modelUsedText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  saveButton: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  savedButton: {
+    backgroundColor: COLORS.textMuted,
+  },
+  saveButtonText: {
     color: COLORS.white,
     fontWeight: '700',
     fontSize: 14,
   },
-  riskResultBox: {
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 10,
-  },
-  riskHeader: {
-    flexDirection: 'row',
+  resetButton: {
+    flex: 1,
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  riskLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  riskValue: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  riskDesc: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 15,
-  },
-  resetBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
+    borderColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
   },
-  resetBtnText: {
-    fontSize: 12,
+  resetButtonText: {
+    color: COLORS.primary,
     fontWeight: '600',
+    fontSize: 14,
   },
-  alertCard: {
-    borderColor: COLORS.accentLight,
-  },
-  alertCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.accent,
-    marginBottom: 12,
-  },
-  alertItem: {
+  infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    backgroundColor: '#EBF6F8',
+    borderColor: '#BFE1E7',
+    gap: 12,
   },
-  alertText: {
-    fontSize: 12,
-    color: COLORS.text,
-    lineHeight: 16,
+  infoContent: {
     flex: 1,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    lineHeight: 16,
   },
 });
