@@ -8,6 +8,8 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   showBackButton?: boolean;
+  userName?: string;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,7 +17,11 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle = 'Salud Infantil Rural',
   showBackButton = false,
+  userName,
+  onLogout,
 }) => {
+  const displaySubtitle = userName ? `${userName} • ${subtitle}` : subtitle;
+
   return (
     <View style={styles.container}>
       <View style={styles.leftRow}>
@@ -25,13 +31,25 @@ export const Header: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         )}
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>{displaySubtitle}</Text>
         </View>
       </View>
-      <View style={styles.statusContainer}>
-        <View style={styles.pulseDot} />
-        <Text style={styles.statusText}>LoRa Mesh</Text>
+      <View style={styles.rightContainer}>
+        <View style={styles.statusContainer}>
+          <View style={styles.pulseDot} />
+          <Text style={styles.statusText}>LoRa Mesh</Text>
+        </View>
+        {onLogout && (
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={onLogout} 
+            activeOpacity={0.7}
+            accessibilityLabel="Cerrar sesión"
+          >
+            <Ionicons name="log-out-outline" size={18} color={COLORS.accent} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -73,6 +91,10 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -92,5 +114,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  logoutButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.accentLight,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

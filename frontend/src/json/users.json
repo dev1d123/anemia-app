@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1",
+    "name": "Dr. Juan Pérez",
+    "email": "juan.perez@salud.gob.pe",
+    "password": "password123"
+  },
+  {
+    "id": "2",
+    "name": "Enf. María Condori",
+    "email": "maria.condori@salud.gob.pe",
+    "password": "password123"
+  }
+]
