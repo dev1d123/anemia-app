@@ -31,6 +31,9 @@ export interface Alimento {
   tiempo_conservacion_dias?: number;
   contiene_gluten: number; // 0 o 1 en SQLite para boolean
   alergeno_comun?: string;
+  apto_vegano?: number;
+  indice_glucemico_estimado?: number;
+  preparacion_sugerida?: string;
 }
 
 export interface AlimentoEcorregion {
@@ -54,6 +57,16 @@ export interface DetalleSustitucion extends Sustitucion {
   alimento_sustituto_precio: number;
   alimento_sustituto_hierro_heminico: number;
   alimento_sustituto_hierro_no_heminico: number;
+}
+
+export interface HistorialDieta {
+  id_historial?: number;
+  paciente_id: string;
+  paciente_nombre: string;
+  hb_status: string;
+  fecha: string;
+  tipo_dieta: string; // 'Recomendada' o 'Personalizada'
+  detalle_dieta: string; // JSON String conteniendo receta o alimentos
 }
 
 // --- SERVICIO DE BASE DE DATOS ---
@@ -130,6 +143,19 @@ export const dbService = {
         impacto_sabor TEXT,
         FOREIGN KEY (id_alimento_original) REFERENCES alimentos(id_alimento) ON DELETE CASCADE,
         FOREIGN KEY (id_alimento_sustituto) REFERENCES alimentos(id_alimento) ON DELETE CASCADE
+      );
+    `);
+
+      // 5. Tabla de Historial de Dietas
+      await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS historial_dietas (
+        id_historial INTEGER PRIMARY KEY AUTOINCREMENT,
+        paciente_id TEXT NOT NULL,
+        paciente_nombre TEXT NOT NULL,
+        hb_status TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        tipo_dieta TEXT NOT NULL,
+        detalle_dieta TEXT NOT NULL
       );
     `);
 
@@ -391,6 +417,62 @@ export const dbService = {
       );
     } catch (error) {
       console.error('[SQLite] Error al vincular alimento con ecorregión:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Inserta una nueva entrada en el historial de dietas.
+   */
+  async insertHistorialDieta(db: SQLiteDatabase, registro: Omit<HistorialDieta, 'id_historial'>): Promise<number> {
+    try {
+      const result = await db.runAsync(`
+        INSERT INTO historial_dietas (
+          paciente_id, paciente_nombre, hb_status, fecha, tipo_dieta, detalle_dieta
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          registro.paciente_id,
+          registro.paciente_nombre,
+          registro.hb_status,
+          registro.fecha,
+          registro.tipo_dieta,
+          registro.detalle_dieta
+        ]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('[SQLite] Error al insertar en historial_dietas:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene todo el historial de dietas de un paciente, o todo en general si no se pasa id.
+   */
+  async getHistorialDietas(db: SQLiteDatabase, pacienteId?: string): Promise<HistorialDieta[]> {
+    try {
+      if (pacienteId) {
+        return await db.getAllAsync<HistorialDieta>(
+          'SELECT * FROM historial_dietas WHERE paciente_id = ? ORDER BY id_historial DESC;',
+          [pacienteId]
+        );
+      } else {
+        return await db.getAllAsync<HistorialDieta>('SELECT * FROM historial_dietas ORDER BY id_historial DESC;');
+      }
+    } catch (error) {
+      console.error('[SQLite] Error en getHistorialDietas:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Elimina un registro del historial.
+   */
+  async deleteHistorialDieta(db: SQLiteDatabase, idHistorial: number): Promise<void> {
+    try {
+      await db.runAsync('DELETE FROM historial_dietas WHERE id_historial = ?;', [idHistorial]);
+    } catch (error) {
+      console.error('[SQLite] Error al eliminar del historial:', error);
       throw error;
     }
   },
