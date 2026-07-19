@@ -33,6 +33,17 @@ backend/.env
 *.db-shm
 *.db-wal
 
+# LaTeX compilation artifacts
+Article/*.aux
+Article/*.log
+Article/*.out
+Article/*.bbl
+Article/*.blg
+Article/*.spl
+Article/*.fls
+Article/*.fdb_latexmk
+Article/*.synctex.gz
+
 # OS files
 .DS_Store
 Thumbs.db
