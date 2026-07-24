@@ -1,53 +1,107 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSQLiteContext } from 'expo-sqlite';
 import { COLORS } from '../theme/colors';
+import { dbService, Diagnostico } from '../services/dbService';
 
 export const SyncScreen: React.FC = () => {
-  const [syncState, setSyncState] = useState<'idle' | 'connecting' | 'transmitting' | 'done'>('idle');
-  const [queueCount, setQueueCount] = useState(3);
+  const db = useSQLiteContext();
+  const [syncState, setSyncState] = useState<'idle' | 'connecting' | 'transmitting' | 'done'>(
+    'idle'
+  );
+  const [pendientes, setPendientes] = useState<Diagnostico[]>([]);
   const [log, setLog] = useState<string[]>([]);
 
-  const handleStartSync = () => {
+  useEffect(() => {
+    cargarPendientes();
+  }, []);
+
+  const cargarPendientes = async () => {
+    try {
+      const records = await dbService.getDiagnosticosPendientesSync(db);
+      setPendientes(records);
+    } catch (error) {
+      console.error('[SyncScreen] Error cargando pendientes:', error);
+    }
+  };
+
+  const handleStartSync = async () => {
+    if (pendientes.length === 0) return;
+
     setSyncState('connecting');
-    setLog(['Iniciando protocolo de transmisión LoRa Mesh...', 'Buscando Nodo Base Rural más cercano...']);
+    setLog([
+      'Iniciando protocolo de transmisión LoRa Mesh...',
+      'Buscando Nodo Base Rural más cercano...',
+    ]);
 
-    setTimeout(() => {
-      setSyncState('transmitting');
-      setLog((prev) => [...prev, 'Conectado a Nodo "Pampa Blanca A" (SF7, RSSI: -96dBm).', 'Transmitiendo cola de datos (3 registros)...']);
+    await delay(1500);
 
-      setTimeout(() => {
-        setLog((prev) => [...prev, 'Enviando Diagnóstico Ocular - Liam Quispe (OK)', 'Enviando Encuesta Ambiental (OK)', 'Enviando Reporte de Suplementación (OK)', 'Esperando ACK de confirmación...']);
+    setSyncState('transmitting');
+    setLog(prev => [
+      ...prev,
+      'Conectado a Nodo "Pampa Blanca A" (SF7, RSSI: -96dBm).',
+      `Transmitiendo cola de datos (${pendientes.length} registros)...`,
+    ]);
 
-        setTimeout(() => {
-          setSyncState('done');
-          setQueueCount(0);
-          setLog((prev) => [...prev, 'ACK recibido con éxito. Registros transformados a formato FHIR.', 'Sincronización completada con éxito.']);
-        }, 1500);
-      }, 1500);
-    }, 1500);
+    for (const diag of pendientes) {
+      await delay(800);
+      setLog(prev => [
+        ...prev,
+        `Enviando Diagnóstico Ocular - ${diag.paciente_nombre} (Hb: ${diag.hb_estimado}, ${diag.nivel_anemia}) [OK]`,
+      ]);
+    }
+
+    setLog(prev => [...prev, 'Esperando ACK de confirmación...']);
+
+    await delay(1500);
+
+    for (const diag of pendientes) {
+      await dbService.marcarDiagnosticoSincronizado(db, diag.id_diagnostico!);
+    }
+
+    setSyncState('done');
+    setLog(prev => [
+      ...prev,
+      'ACK recibido con éxito. Registros transformados a formato FHIR.',
+      `Sincronización completada: ${pendientes.length} registros confirmados.`,
+    ]);
+
+    await cargarPendientes();
   };
 
   const handleReset = () => {
     setSyncState('idle');
-    setQueueCount(3);
     setLog([]);
+    cargarPendientes();
   };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} style={styles.container}>
-      {/* Estado del Nodo Mesh */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Sincronización Red LoRa Mesh</Text>
         <Text style={styles.sectionDesc}>
-          Permite transmitir historiales clínicos y diagnósticos sin acceso a internet utilizando la red mesh de radiofrecuencia rural.
+          Permite transmitir historiales clínicos y diagnósticos sin acceso a internet utilizando la
+          red mesh de radiofrecuencia rural.
         </Text>
 
         <View style={styles.statusRow}>
           <View style={styles.statusBox}>
             <Text style={styles.statusLabel}>Cola Local</Text>
-            <Text style={[styles.statusValue, { color: queueCount > 0 ? COLORS.accent : COLORS.secondary }]}>
-              {queueCount} registros
+            <Text
+              style={[
+                styles.statusValue,
+                { color: pendientes.length > 0 ? COLORS.accent : COLORS.secondary },
+              ]}
+            >
+              {pendientes.length} registros
             </Text>
           </View>
           <View style={styles.statusBox}>
@@ -55,6 +109,23 @@ export const SyncScreen: React.FC = () => {
             <Text style={[styles.statusValue, { color: COLORS.primary }]}>915 MHz</Text>
           </View>
         </View>
+
+        {pendientes.length > 0 && (
+          <View style={styles.queuePreview}>
+            <Text style={styles.queueTitle}>Registros pendientes:</Text>
+            {pendientes.slice(0, 3).map(d => (
+              <View key={d.id_diagnostico} style={styles.queueItem}>
+                <Ionicons name="document-text-outline" size={14} color={COLORS.textMuted} />
+                <Text style={styles.queueItemText}>
+                  {d.paciente_nombre} — Hb: {d.hb_estimado} ({d.nivel_anemia})
+                </Text>
+              </View>
+            ))}
+            {pendientes.length > 3 && (
+              <Text style={styles.queueMore}>...y {pendientes.length - 3} más</Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.divider} />
 
@@ -73,17 +144,18 @@ export const SyncScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Panel de Control */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Panel de Transmisión</Text>
         {syncState === 'idle' && (
           <TouchableOpacity
-            style={[styles.syncBtn, queueCount === 0 && styles.disabledBtn]}
+            style={[styles.syncBtn, pendientes.length === 0 && styles.disabledBtn]}
             onPress={handleStartSync}
-            disabled={queueCount === 0}
+            disabled={pendientes.length === 0}
           >
             <Ionicons name="sync" size={20} color={COLORS.white} />
-            <Text style={styles.syncBtnText}>Iniciar Sincronización Offline</Text>
+            <Text style={styles.syncBtnText}>
+              {pendientes.length === 0 ? 'Cola Vacía' : 'Iniciar Sincronización Offline'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -91,7 +163,9 @@ export const SyncScreen: React.FC = () => {
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loaderText}>
-              {syncState === 'connecting' ? 'Estableciendo enlace LoRa...' : 'Transmitiendo datos por radio...'}
+              {syncState === 'connecting'
+                ? 'Estableciendo enlace LoRa...'
+                : 'Transmitiendo datos por radio...'}
             </Text>
           </View>
         )}
@@ -99,10 +173,13 @@ export const SyncScreen: React.FC = () => {
         {syncState === 'done' && (
           <View style={styles.doneContainer}>
             <Ionicons name="checkmark-done-circle" size={48} color={COLORS.secondary} />
-            <Text style={styles.doneText}>¡Sincronización Exitosa!</Text>
-            <Text style={styles.doneSub}>Los datos locales fueron recibidos por la estación base y borrados de la cola de salida.</Text>
+            <Text style={styles.doneText}>Sincronización Exitosa</Text>
+            <Text style={styles.doneSub}>
+              Los datos locales fueron recibidos por la estación base y borrados de la cola de
+              salida.
+            </Text>
             <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-              <Text style={styles.resetBtnText}>Simular nueva cola</Text>
+              <Text style={styles.resetBtnText}>Verificar cola nuevamente</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -121,6 +198,10 @@ export const SyncScreen: React.FC = () => {
     </ScrollView>
   );
 };
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -174,6 +255,33 @@ const styles = StyleSheet.create({
   statusValue: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  queuePreview: {
+    marginTop: 15,
+    backgroundColor: COLORS.accentLight,
+    padding: 12,
+    borderRadius: 12,
+  },
+  queueTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.accent,
+    marginBottom: 6,
+  },
+  queueItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  queueItemText: {
+    fontSize: 11,
+    color: COLORS.text,
+  },
+  queueMore: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
   divider: {
     height: 1,
