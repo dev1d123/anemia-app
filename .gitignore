@@ -56,3 +56,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+context.md
+script.py
+.env

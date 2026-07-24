@@ -1,3 +1,70 @@
 \subsection{Módulo de Prevención}
 \label{sec:modulo_prevencion}
-Escriba aquí la descripción del módulo de evaluación de riesgo familiar.
+
+El módulo de prevención tiene como objetivo técnico el análisis de imágenes del entorno mediante Computer Vision, con el impacto social de reducir la reinfección por parásitos y enfermedades diarreicas. A continuación, se detallan las características del módulo:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|p{6cm}|}
+\hline
+\textbf{Atributo} & \textbf{Detalle} \\
+\hline
+Entrada & Foto del entorno del hogar (agua, suelo, animales, cocina) \\
+\hline
+Salida & Nivel de riesgo sanitario + recomendaciones de higiene \\
+\hline
+Tecnologías & Gemma 4 visión o MobileNet fine-tuned para riesgos sanitarios \\
+\hline
+Ejecuta en & Dispositivo móvil, completamente offline \\
+\hline
+\end{tabular}
+\caption{Especificaciones del Módulo de Prevención}
+\label{tab:modulo_prevencion}
+\end{table}
+
+\subsubsection{Indicadores detectados por Computer Vision}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Indicador} & \textbf{Riesgo Asociado} \\
+\hline
+Agua estancada cerca del hogar & Mosquitos, diarreas, parásitos \\
+\hline
+Heces de animales en área de juego & Reinfección por helmintos \\
+\hline
+Basura acumulada & Vectores (moscas, roedores) \\
+\hline
+Fuente de agua sin protección & Contaminación fecal \\
+\hline
+Falta de lavado de manos visible & Transmisión oral-fecal \\
+\hline
+\end{tabular}
+\caption{Indicadores de riesgo sanitario detectados por visión por computadora}
+\label{tab:indicadores_riesgo}
+\end{table}
+
+\subsubsection{Selección de imagen del entorno}
+
+En la Figura~\ref{fig:mod_prevencion_seleccion} se muestra la interfaz de selección de imagen del entorno, donde el usuario puede capturar o cargar una foto de su hogar para su posterior análisis.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.28\textwidth]{images/Modulo_Prevencion_Seleccion_Imagen.jpeg}
+\caption{Interfaz de selección de imagen del entorno}
+\label{fig:mod_prevencion_seleccion}
+\end{figure}
+
+\subsubsection{Resultado del análisis}
+
+La Figura~\ref{fig:mod_prevencion_resultado} presenta el resultado del análisis, mostrando el nivel de riesgo sanitario detectado junto con las recomendaciones de higiene correspondientes.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.28\textwidth]{images/Modulo_Prevencion_Resultado.jpeg}
+\caption{Resultado del análisis con nivel de riesgo y recomendaciones}
+\label{fig:mod_prevencion_resultado}
+\end{figure}
