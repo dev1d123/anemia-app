@@ -2,21 +2,35 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import axios from 'axios';
 import { Alert } from 'react-native';
-import Constants from 'expo-constants';
 
 export interface GemmaResult {
-  hasStagnantWater: boolean;
-  hasAnimalFeces: boolean;
-  hasGarbage: boolean;
-  hasUnprotectedWater: boolean;
   riskLevel: 'BAJO' | 'MEDIO' | 'ALTO';
-  description: string;
+  positiveMessage: string;
+  risks: {
+    stagnantWater: {
+      detected: boolean;
+      message: string;
+    };
+    animalsNearHome: {
+      detected: boolean;
+      message: string;
+    };
+    garbage: {
+      detected: boolean;
+      message: string;
+    };
+    unprotectedWater: {
+      detected: boolean;
+      message: string;
+    };
+  };
+  actionPlan: string[];
 }
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-// Configuracion de OpenRouter
-const OPENROUTER_API_KEY = "sk-oxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+// Tu API Key
+const OPENROUTER_API_KEY = "sk-or-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
 class GemmaService {
   private modelLoaded: boolean = false;
@@ -24,12 +38,8 @@ class GemmaService {
   async loadModel(): Promise<void> {
     this.modelLoaded = true;
     console.log('[GemmaService] Gemma 4 cargado exitosamente');
-    
-    if (OPENROUTER_API_KEY && OPENROUTER_API_KEY.startsWith('sk-or-')) {
-      console.log('[GemmaService] API Key encontrada');
-    } else {
-      console.warn('[GemmaService] API Key invalida o no encontrada');
-    }
+    console.log('[GemmaService] API Key presente:', !!OPENROUTER_API_KEY);
+    console.log('[GemmaService] API Key longitud:', OPENROUTER_API_KEY?.length || 0);
   }
 
   isModelReady(): boolean {
@@ -37,30 +47,55 @@ class GemmaService {
   }
 
   async analyzeImage(imagePath: string): Promise<GemmaResult> {
-    if (!this.modelLoaded) {
-      console.log('[GemmaService] Modelo no listo, usando simulacion');
-      return this.generateMockResult();
-    }
-
-    if (!OPENROUTER_API_KEY) {
-      console.log('[GemmaService] No hay API Key, usando simulacion');
-      return this.generateMockResult();
-    }
-
+    console.log('[GemmaService] ===== INICIO ANALISIS =====');
+    console.log('[GemmaService] modelLoaded:', this.modelLoaded);
+    console.log('[GemmaService] API Key:', OPENROUTER_API_KEY ? 'PRESENTE' : 'VACIA');
+    
+    // SIEMPRE intentar usar la API primero
     try {
-      console.log('[GemmaService] Gemma 4 analizando imagen...');
-      
+      console.log('[GemmaService] Intentando usar API real...');
       const base64Image = await this.imageToBase64(imagePath);
+      console.log('[GemmaService] Imagen convertida a base64, tamaño:', base64Image.length);
 
-      const prompt = `Analiza esta imagen y responde SOLO con un objeto JSON valido, sin texto adicional.
+      const prompt = `Eres un asesor de salud ambiental para zonas rurales. Analiza la imagen de un PATIO O COCINA de una vivienda rural.
 
-      Si la imagen NO muestra un entorno domestico real (cocina, patio, dormitorio, zona de animales), responde:
-      {"valid": false, "error": "Imagen no valida. Toma una foto del hogar real."}
+Responde SOLO con un objeto JSON valido, sin texto adicional:
 
-      Si la imagen ES valida, responde:
-      {"valid": true, "hasStagnantWater": false, "hasAnimalFeces": false, "hasGarbage": false, "hasUnprotectedWater": false}
+{
+  "valid": true,
+  "riskLevel": "BAJO",
+  "positiveMessage": "Tu hogar esta en buenas condiciones. Sigue asi protegiendo a tu familia.",
+  "risks": {
+    "stagnantWater": {
+      "detected": false,
+      "message": "No hay agua estancada. Menos mosquitos significa menos enfermedades."
+    },
+    "animalsNearHome": {
+      "detected": false,
+      "message": "Los animales estan lejos de la cocina. Bien protegido contra parasitos."
+    },
+    "garbage": {
+      "detected": false,
+      "message": "El area esta limpia. Menos moscas y ratas."
+    },
+    "unprotectedWater": {
+      "detected": false,
+      "message": "El agua esta protegida. El agua limpia es vida."
+    }
+  },
+  "actionPlan": [
+    "Mantén el patio limpio cada semana",
+    "Revisa el agua cada mañana"
+  ]
+}
 
-      Reemplaza los valores false con true si detectas el riesgo en la imagen.`;
+Si detectas un riesgo, cambia "detected": true y el mensaje a algo como:
+"Vimos agua estancada. Los mosquitos pueden transmitir dengue. Te ayudamos a eliminarla."
+
+Si la imagen no es de un patio o cocina, responde:
+{"valid": false, "error": "La imagen no muestra un patio o cocina. Por favor, toma una foto del patio de tu casa."}`;
+
+      console.log('[GemmaService] Enviando peticion a OpenRouter...');
 
       const response = await axios.post(
         OPENROUTER_URL,
@@ -75,7 +110,7 @@ class GemmaService {
               ]
             }
           ],
-          max_tokens: 200,
+          max_tokens: 300,
           temperature: 0.1,
         },
         {
@@ -85,11 +120,11 @@ class GemmaService {
             'HTTP-Referer': 'https://anemia-app.org',
             'X-Title': 'Monitor-Anemia AI',
           },
-          timeout: 30000,
+          timeout: 60000,
         }
       );
 
-      console.log('[GemmaService] Analisis completado');
+      console.log('[GemmaService] Respuesta recibida, status:', response.status);
       const rawResponse = response.data.choices[0].message.content;
       console.log('[GemmaService] Respuesta raw:', rawResponse);
       
@@ -101,6 +136,7 @@ class GemmaService {
       }
       
       if (parsed.valid === false) {
+        console.log('[GemmaService] Imagen no valida:', parsed.error);
         Alert.alert(
           'Imagen no valida',
           parsed.error || 'La imagen no corresponde a un entorno domestico.'
@@ -108,10 +144,17 @@ class GemmaService {
         return this.generateMockResult();
       }
       
+      console.log('[GemmaService] Analisis completado con exito');
       return this.processValidResponse(parsed);
       
     } catch (error) {
+      console.log('[GemmaService] ===== ERROR EN API =====');
+      
       if (axios.isAxiosError(error)) {
+        console.log('[GemmaService] Error Axios - Status:', error.response?.status);
+        console.log('[GemmaService] Error Axios - Data:', JSON.stringify(error.response?.data, null, 2));
+        console.log('[GemmaService] Error Axios - Message:', error.message);
+        
         if (error.response?.status === 401) {
           console.error('[GemmaService] Error 401: API Key invalida o sin creditos');
           Alert.alert(
@@ -129,11 +172,14 @@ class GemmaService {
           Alert.alert('Limite excedido', 'Espera unos minutos y vuelve a intentar.');
         } else {
           console.error('[GemmaService] Error Axios:', error.response?.status, error.message);
+          Alert.alert('Error de API', `Status: ${error.response?.status || 'Desconocido'}`);
         }
       } else {
         console.error('[GemmaService] Error desconocido:', error);
+        Alert.alert('Error', 'Ocurrio un error al analizar la imagen.');
       }
       
+      console.log('[GemmaService] Usando simulacion como fallback');
       return this.generateMockResult();
     }
   }
@@ -155,38 +201,32 @@ class GemmaService {
   }
 
   private processValidResponse(parsed: any): GemmaResult {
-    const hasStagnantWater = parsed.hasStagnantWater || false;
-    const hasAnimalFeces = parsed.hasAnimalFeces || false;
-    const hasGarbage = parsed.hasGarbage || false;
-    const hasUnprotectedWater = parsed.hasUnprotectedWater || false;
-
-    let riskScore = 0;
-    if (hasStagnantWater) riskScore += 2;
-    if (hasAnimalFeces) riskScore += 2;
-    if (hasGarbage) riskScore += 1;
-    if (hasUnprotectedWater) riskScore += 2;
-
-    let riskLevel: 'BAJO' | 'MEDIO' | 'ALTO';
-    if (riskScore >= 5) riskLevel = 'ALTO';
-    else if (riskScore >= 3) riskLevel = 'MEDIO';
-    else riskLevel = 'BAJO';
-
-    const problems: string[] = [];
-    if (hasStagnantWater) problems.push('agua estancada');
-    if (hasAnimalFeces) problems.push('heces de animales');
-    if (hasGarbage) problems.push('basura acumulada');
-    if (hasUnprotectedWater) problems.push('agua sin proteccion');
-
-    let description = '';
-    if (riskLevel === 'ALTO') {
-      description = `Riesgo ALTO detectado. Se encontro: ${problems.join(', ')}.`;
-    } else if (riskLevel === 'MEDIO') {
-      description = `Riesgo MEDIO detectado. Se encontro: ${problems.join(', ')}.`;
-    } else {
-      description = 'Buenas condiciones. El entorno parece seguro.';
-    }
-
-    return { hasStagnantWater, hasAnimalFeces, hasGarbage, hasUnprotectedWater, riskLevel, description };
+    const riskLevel = parsed.riskLevel || 'BAJO';
+    const risks = parsed.risks || {};
+    
+    return {
+      riskLevel: riskLevel,
+      positiveMessage: parsed.positiveMessage || 'Tu hogar esta en buenas condiciones.',
+      risks: {
+        stagnantWater: {
+          detected: risks.stagnantWater?.detected || false,
+          message: risks.stagnantWater?.message || 'No hay agua estancada.'
+        },
+        animalsNearHome: {
+          detected: risks.animalsNearHome?.detected || false,
+          message: risks.animalsNearHome?.message || 'Los animales estan lejos.'
+        },
+        garbage: {
+          detected: risks.garbage?.detected || false,
+          message: risks.garbage?.message || 'El area esta limpia.'
+        },
+        unprotectedWater: {
+          detected: risks.unprotectedWater?.detected || false,
+          message: risks.unprotectedWater?.message || 'El agua esta protegida.'
+        }
+      },
+      actionPlan: parsed.actionPlan || ['Mantén el patio limpio cada semana']
+    };
   }
 
   private async imageToBase64(imagePath: string): Promise<string> {
@@ -197,40 +237,56 @@ class GemmaService {
   }
 
   private generateMockResult(): GemmaResult {
-    console.log('[GemmaService] Usando simulacion');
-    const random = Date.now() % 10;
-    const hasStagnantWater = random % 3 === 0;
-    const hasAnimalFeces = random % 4 === 0;
-    const hasGarbage = random % 5 === 0;
-    const hasUnprotectedWater = random % 3 === 1;
+    console.log('[GemmaService] Generando resultado simulado (NO IA)');
+    
+    // Hacer la simulación más "realista" - siempre detectar animales si es una foto real
+    // Esto es un fallback, pero ya no debería usarse si la API funciona
+    const hasAnimalsNearHome = true; // Siempre detectar animales en modo simulación
+    const hasStagnantWater = false;
+    const hasGarbage = false;
+    const hasUnprotectedWater = false;
 
-    let riskScore = 0;
-    if (hasStagnantWater) riskScore += 2;
-    if (hasAnimalFeces) riskScore += 2;
-    if (hasGarbage) riskScore += 1;
-    if (hasUnprotectedWater) riskScore += 2;
+    let riskLevel: 'BAJO' | 'MEDIO' | 'ALTO' = 'BAJO';
+    let positiveMessage = 'Tu hogar esta en buenas condiciones. Sigue asi protegiendo a tu familia.';
 
-    let riskLevel: 'BAJO' | 'MEDIO' | 'ALTO';
-    if (riskScore >= 5) riskLevel = 'ALTO';
-    else if (riskScore >= 3) riskLevel = 'MEDIO';
-    else riskLevel = 'BAJO';
-
-    const problems: string[] = [];
-    if (hasStagnantWater) problems.push('agua estancada');
-    if (hasAnimalFeces) problems.push('heces de animales');
-    if (hasGarbage) problems.push('basura acumulada');
-    if (hasUnprotectedWater) problems.push('agua sin proteccion');
-
-    let description = '';
-    if (riskLevel === 'ALTO') {
-      description = `Riesgo ALTO detectado. Se encontro: ${problems.join(', ')}.`;
-    } else if (riskLevel === 'MEDIO') {
-      description = `Riesgo MEDIO detectado. Se encontro: ${problems.join(', ')}.`;
-    } else {
-      description = 'Buenas condiciones. El entorno parece seguro.';
+    if (hasAnimalsNearHome) {
+      riskLevel = 'MEDIO';
+      positiveMessage = 'Detectamos algunos riesgos que podemos mejorar juntos.';
     }
 
-    return { hasStagnantWater, hasAnimalFeces, hasGarbage, hasUnprotectedWater, riskLevel, description };
+    return {
+      riskLevel: riskLevel,
+      positiveMessage: positiveMessage,
+      risks: {
+        stagnantWater: {
+          detected: hasStagnantWater,
+          message: hasStagnantWater 
+            ? 'Vimos agua estancada. Los mosquitos pueden transmitir dengue. Te ayudamos a eliminarla.'
+            : 'No hay agua estancada. Menos mosquitos significa menos enfermedades.'
+        },
+        animalsNearHome: {
+          detected: hasAnimalsNearHome,
+          message: hasAnimalsNearHome
+            ? 'Vimos animales cerca de la cocina. Los parasitos se transmiten asi. Vamos a solucionarlo.'
+            : 'Los animales estan lejos de la cocina. Bien protegido contra parasitos.'
+        },
+        garbage: {
+          detected: hasGarbage,
+          message: hasGarbage
+            ? 'Vimos basura acumulada. Las moscas y ratas pueden transmitir enfermedades.'
+            : 'El area esta limpia. Menos moscas y ratas.'
+        },
+        unprotectedWater: {
+          detected: hasUnprotectedWater,
+          message: hasUnprotectedWater
+            ? 'El agua de consumo esta descubierta. Puede contaminarse facilmente.'
+            : 'El agua esta protegida. El agua limpia es vida.'
+        }
+      },
+      actionPlan: riskLevel === 'MEDIO' || riskLevel === 'ALTO'
+        ? ['Mantén los animales alejados de la cocina', 'Limpia el area regularmente']
+        : ['Mantén el patio limpio cada semana', 'Revisa el agua cada mañana']
+    };
   }
 
   async takePicture(): Promise<string | null> {

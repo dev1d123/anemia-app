@@ -1,4 +1,4 @@
-import { EnvironmentRisk, createEnvironmentRisk, getRecommendations } from '../models/environment_risk';
+import { EnvironmentRisk, createEnvironmentRisk } from '../models/environment_risk';
 import { GemmaResult } from './gemma_service';
 
 class RiskAnalyzer {
@@ -9,21 +9,15 @@ class RiskAnalyzer {
   }): EnvironmentRisk {
     const { patientId, imagePath, gemmaResult } = params;
 
-    const recommendations = getRecommendations(gemmaResult.riskLevel, {
-      hasStagnantWater: gemmaResult.hasStagnantWater,
-      hasAnimalFeces: gemmaResult.hasAnimalFeces,
-      hasGarbage: gemmaResult.hasGarbage,
-      hasUnprotectedWater: gemmaResult.hasUnprotectedWater,
-    });
+    const recommendations = [...gemmaResult.actionPlan];
 
     return createEnvironmentRisk({
       patientId,
       imagePath,
-      hasStagnantWater: gemmaResult.hasStagnantWater,
-      hasAnimalFeces: gemmaResult.hasAnimalFeces,
-      hasGarbage: gemmaResult.hasGarbage,
-      hasUnprotectedWater: gemmaResult.hasUnprotectedWater,
       riskLevel: gemmaResult.riskLevel,
+      positiveMessage: gemmaResult.positiveMessage,
+      risks: gemmaResult.risks,
+      actionPlan: gemmaResult.actionPlan,
       recommendations,
       synced: false,
     });

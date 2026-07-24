@@ -32,18 +32,12 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
   const [saved, setSaved] = useState(false);
   const [isModelReady, setIsModelReady] = useState(false);
 
-  // Cargar modelo (Gemma 4)
   useEffect(() => {
     const loadModel = async () => {
       try {
         await gemmaService.loadModel();
         const ready = gemmaService.isModelReady();
         setIsModelReady(ready);
-        if (ready) {
-          console.log('Gemma 4 listo para usar');
-        } else {
-          console.log('Modo simulación activado');
-        }
       } catch (error) {
         console.log('Error cargando modelo:', error);
         setIsModelReady(false);
@@ -78,7 +72,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
     } else {
       Alert.alert(
         'Seleccionar imagen',
-        '¿Cómo quieres obtener la imagen?',
+        '¿Como quieres obtener la imagen?',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Tomar Foto', onPress: handleTakePhoto },
@@ -96,11 +90,11 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
         setImagePath(path);
         await analyzeImage(path);
       } else {
-        Alert.alert('Error', 'No se pudo tomar la foto. Intenta nuevamente.');
+        Alert.alert('Error', 'No se pudo tomar la foto.');
         setStep('idle');
       }
     } catch (error) {
-      Alert.alert('Error', 'Ocurrió un error al tomar la foto.');
+      Alert.alert('Error', 'Ocurrio un error al tomar la foto.');
       setStep('idle');
     }
   };
@@ -113,11 +107,11 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
         setImagePath(path);
         await analyzeImage(path);
       } else {
-        Alert.alert('Error', 'No se pudo cargar la imagen. Intenta nuevamente.');
+        Alert.alert('Error', 'No se pudo cargar la imagen.');
         setStep('idle');
       }
     } catch (error) {
-      Alert.alert('Error', 'Ocurrió un error al cargar la imagen.');
+      Alert.alert('Error', 'Ocurrio un error al cargar la imagen.');
       setStep('idle');
     }
   };
@@ -139,7 +133,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
       setStep('result');
       setIsLoading(false);
     } catch (error) {
-      Alert.alert('Error', 'Error al analizar la imagen. Intenta nuevamente.');
+      Alert.alert('Error', 'Error al analizar la imagen.');
       setStep('idle');
       setIsLoading(false);
     }
@@ -153,10 +147,10 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
       setSaved(true);
       Alert.alert(
         'Guardado Exitoso',
-        `Evaluación de entorno para ${patient.name} guardada localmente. Pendiente de sincronización Mesh.`
+        `Evaluacion de entorno para ${patient.name} guardada localmente.`
       );
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar la evaluación.');
+      Alert.alert('Error', 'No se pudo guardar la evaluacion.');
     }
   };
 
@@ -173,34 +167,23 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.instructionText}>
-              Toma una foto o selecciona una imagen del entorno del hogar para analizar riesgos sanitarios.
+              Toma una foto del patio o cocina de tu hogar para analizar los factores de riesgo sanitario.
             </Text>
             
             <View style={styles.riskList}>
-              <View style={styles.riskItem}>
-                <Text>Agua estancada</Text>
-              </View>
-              <View style={styles.riskItem}>
-                <Text>Heces de animales</Text>
-              </View>
-              <View style={styles.riskItem}>
-                <Text>Basura acumulada</Text>
-              </View>
-              <View style={styles.riskItem}>
-                <Text>Agua sin protección</Text>
-              </View>
+              <View style={styles.riskItem}><Text>Agua estancada</Text></View>
+              <View style={styles.riskItem}><Text>Animales cerca de la cocina</Text></View>
+              <View style={styles.riskItem}><Text>Basura acumulada</Text></View>
+              <View style={styles.riskItem}><Text>Agua sin proteccion</Text></View>
             </View>
 
             <View style={styles.modelStatus}>
               <Text style={styles.modelStatusText}>
-                {isModelReady ? 'Gemma 4: Listo' : 'Modo simulación (sin IA)'}
+                {isModelReady ? 'Gemma 4: Listo' : 'Modo simulacion (sin IA)'}
               </Text>
             </View>
 
-            <TouchableOpacity 
-              style={styles.captureButton} 
-              onPress={showImageSourceOptions}
-            >
+            <TouchableOpacity style={styles.captureButton} onPress={showImageSourceOptions}>
               <Ionicons name="camera" size={24} color={COLORS.white} />
               <Text style={styles.captureButtonText}>Seleccionar Imagen</Text>
             </TouchableOpacity>
@@ -213,7 +196,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
             <View style={styles.mockCameraView}>
               <ActivityIndicator size="large" color={COLORS.accent} />
               <Text style={styles.cameraText}>Preparando imagen...</Text>
-              <Text style={styles.cameraSubText}>Asegúrate de tener buena iluminación</Text>
+              <Text style={styles.cameraSubText}>Asegurate de tener buena iluminacion</Text>
             </View>
           </View>
         );
@@ -224,7 +207,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
             <View style={styles.mockCameraView}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.cameraText}>
-                {isModelReady ? 'Gemma 4 analizando el entorno...' : 'Simulando análisis...'}
+                {isModelReady ? 'Gemma 4 analizando el entorno...' : 'Simulando analisis...'}
               </Text>
               <Text style={styles.cameraSubText}>Esto puede tomar unos segundos</Text>
             </View>
@@ -246,49 +229,76 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
                 <Text style={styles.riskLevelText}>
                   {riskAnalyzer.getRiskText(riskResult.riskLevel)}
                 </Text>
+                <Text style={styles.positiveMessageText}>
+                  {riskResult.positiveMessage}
+                </Text>
               </View>
 
               <View style={styles.detailsContainer}>
-                <Text style={styles.detailsTitle}>Riesgos Detectados:</Text>
-                {riskResult.hasStagnantWater && (
-                  <View style={styles.detailItem}>
-                    <Ionicons name="water" size={20} color={COLORS.accent} />
-                    <Text style={styles.detailText}>Agua estancada</Text>
-                  </View>
-                )}
-                {riskResult.hasAnimalFeces && (
-                  <View style={styles.detailItem}>
-                    <Ionicons name="paw" size={20} color={COLORS.accent} />
-                    <Text style={styles.detailText}>Heces de animales</Text>
-                  </View>
-                )}
-                {riskResult.hasGarbage && (
-                  <View style={styles.detailItem}>
-                    <Ionicons name="trash" size={20} color={COLORS.accent} />
-                    <Text style={styles.detailText}>Basura acumulada</Text>
-                  </View>
-                )}
-                {riskResult.hasUnprotectedWater && (
-                  <View style={styles.detailItem}>
-                    <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
-                    <Text style={styles.detailText}>Agua sin protección</Text>
-                  </View>
-                )}
+                <Text style={styles.detailsTitle}>Revision del entorno:</Text>
+                
+                <View style={[
+                  styles.riskItem,
+                  riskResult.risks.stagnantWater.detected ? styles.dangerRisk : styles.safeRisk
+                ]}>
+                  <Ionicons 
+                    name={riskResult.risks.stagnantWater.detected ? 'alert-circle' : 'checkmark-circle'} 
+                    size={20} 
+                    color={riskResult.risks.stagnantWater.detected ? COLORS.accent : COLORS.secondary} 
+                  />
+                  <Text style={styles.riskMessage}>{riskResult.risks.stagnantWater.message}</Text>
+                </View>
+
+                <View style={[
+                  styles.riskItem,
+                  riskResult.risks.animalsNearHome.detected ? styles.dangerRisk : styles.safeRisk
+                ]}>
+                  <Ionicons 
+                    name={riskResult.risks.animalsNearHome.detected ? 'alert-circle' : 'checkmark-circle'} 
+                    size={20} 
+                    color={riskResult.risks.animalsNearHome.detected ? COLORS.accent : COLORS.secondary} 
+                  />
+                  <Text style={styles.riskMessage}>{riskResult.risks.animalsNearHome.message}</Text>
+                </View>
+
+                <View style={[
+                  styles.riskItem,
+                  riskResult.risks.garbage.detected ? styles.dangerRisk : styles.safeRisk
+                ]}>
+                  <Ionicons 
+                    name={riskResult.risks.garbage.detected ? 'alert-circle' : 'checkmark-circle'} 
+                    size={20} 
+                    color={riskResult.risks.garbage.detected ? COLORS.accent : COLORS.secondary} 
+                  />
+                  <Text style={styles.riskMessage}>{riskResult.risks.garbage.message}</Text>
+                </View>
+
+                <View style={[
+                  styles.riskItem,
+                  riskResult.risks.unprotectedWater.detected ? styles.dangerRisk : styles.safeRisk
+                ]}>
+                  <Ionicons 
+                    name={riskResult.risks.unprotectedWater.detected ? 'alert-circle' : 'checkmark-circle'} 
+                    size={20} 
+                    color={riskResult.risks.unprotectedWater.detected ? COLORS.accent : COLORS.secondary} 
+                  />
+                  <Text style={styles.riskMessage}>{riskResult.risks.unprotectedWater.message}</Text>
+                </View>
               </View>
 
-              <View style={styles.recommendationsContainer}>
-                <Text style={styles.recommendationsTitle}>Recomendaciones:</Text>
-                {riskResult.recommendations.map((rec, index) => (
-                  <View key={index} style={styles.recommendationItem}>
-                    <Ionicons name="checkmark-circle" size={20} color={COLORS.secondary} />
-                    <Text style={styles.recommendationText}>{rec}</Text>
+              <View style={styles.actionPlanContainer}>
+                <Text style={styles.actionPlanTitle}>Tu plan de accion:</Text>
+                {riskResult.actionPlan.map((action, index) => (
+                  <View key={index} style={styles.actionItem}>
+                    <Ionicons name="checkbox-outline" size={16} color={COLORS.primary} />
+                    <Text style={styles.actionText}>{action}</Text>
                   </View>
                 ))}
               </View>
 
               <View style={styles.modelUsedContainer}>
                 <Text style={styles.modelUsedText}>
-                  {isModelReady ? 'Analizado con Gemma 4' : 'Análisis simulado'}
+                  {isModelReady ? 'Analizado con Gemma 4' : 'Analisis simulado'}
                 </Text>
               </View>
 
@@ -304,7 +314,7 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
                     color={COLORS.white}
                   />
                   <Text style={styles.saveButtonText}>
-                    {saved ? 'Guardado Local' : 'Guardar Evaluación'}
+                    {saved ? 'Guardado Local' : 'Guardar Evaluacion'}
                   </Text>
                 </TouchableOpacity>
 
@@ -324,23 +334,19 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer} style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Prevención Ambiental</Text>
+        <Text style={styles.sectionTitle}>Prevencion Ambiental</Text>
         <Text style={styles.sectionDesc}>
-          Analiza el entorno del hogar para detectar riesgos de reinfección por parásitos
-          y enfermedades diarreicas usando Gemma 4 AI.
+          Analiza el entorno del hogar para detectar riesgos de reinfeccion.
         </Text>
-
         {renderContent()}
       </View>
 
       <View style={[styles.card, styles.infoCard]}>
         <Ionicons name="information-circle" size={24} color={COLORS.primary} />
         <View style={styles.infoContent}>
-          <Text style={styles.infoTitle}>¿Cómo funciona?</Text>
+          <Text style={styles.infoTitle}>Como funciona?</Text>
           <Text style={styles.infoText}>
-            Gemma 4 analiza la imagen y detecta: agua estancada, heces de animales,
-            basura acumulada y fuentes de agua sin protección. Estos son los principales
-            factores de reinfección en zonas rurales.
+            La IA analiza la imagen y detecta factores de riesgo del entorno.
           </Text>
         </View>
       </View>
@@ -349,13 +355,8 @@ export const PreventionScreen: React.FC<PreventionScreenProps> = ({ patient }) =
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContainer: {
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scrollContainer: { padding: 20 },
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 20,
@@ -369,50 +370,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: 8,
-  },
-  sectionDesc: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    lineHeight: 18,
-    marginBottom: 20,
-  },
-  contentContainer: {
-    width: '100%',
-  },
-  instructionText: {
-    fontSize: 14,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  riskList: {
-    marginBottom: 16,
-  },
-  riskItem: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.background,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  modelStatus: {
-    backgroundColor: COLORS.primaryLight,
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  modelStatusText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.primary, marginBottom: 8 },
+  sectionDesc: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18, marginBottom: 20 },
+  contentContainer: { width: '100%' },
+  instructionText: { fontSize: 14, color: COLORS.text, textAlign: 'center', marginBottom: 16, lineHeight: 20 },
+  riskList: { marginBottom: 16 },
+  riskItem: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: COLORS.background, borderRadius: 8, marginBottom: 4 },
+  modelStatus: { backgroundColor: COLORS.primaryLight, padding: 8, borderRadius: 8, marginBottom: 16, alignItems: 'center' },
+  modelStatusText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
   captureButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -423,11 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
-  captureButtonText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  captureButtonText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
   mockCameraView: {
     width: '100%',
     height: 250,
@@ -440,97 +401,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 15,
   },
-  cameraText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: 12,
-  },
-  cameraSubText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: 8,
-  },
-  resultContainer: {
-    width: '100%',
-  },
-  riskIndicator: {
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  riskEmoji: {
-    fontSize: 48,
-  },
-  riskLevelText: {
-    fontSize: 20,
-    fontWeight: '700',
+  cameraText: { fontSize: 16, fontWeight: '600', color: COLORS.primary, marginTop: 12 },
+  cameraSubText: { fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
+  resultContainer: { width: '100%' },
+  riskIndicator: { padding: 20, borderRadius: 16, alignItems: 'center', marginBottom: 16 },
+  riskEmoji: { fontSize: 48 },
+  riskLevelText: { fontSize: 20, fontWeight: '700', color: COLORS.white, marginTop: 8 },
+  positiveMessageText: {
+    fontSize: 14,
     color: COLORS.white,
+    textAlign: 'center',
     marginTop: 8,
+    lineHeight: 20,
+    paddingHorizontal: 10,
+    opacity: 0.95,
   },
-  detailsContainer: {
-    backgroundColor: COLORS.background,
+  detailsContainer: { backgroundColor: COLORS.background, borderRadius: 12, padding: 16, marginBottom: 16 },
+  detailsTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
+  safeRisk: { backgroundColor: COLORS.secondaryLight, borderWidth: 1, borderColor: COLORS.secondary },
+  dangerRisk: { backgroundColor: COLORS.accentLight, borderWidth: 1, borderColor: COLORS.accent },
+  riskMessage: { fontSize: 13, color: COLORS.text, flex: 1, lineHeight: 18 },
+  actionPlanContainer: {
+    backgroundColor: '#F0F7FF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
   },
-  detailsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  detailText: {
-    fontSize: 13,
-    color: COLORS.text,
-  },
-  recommendationsContainer: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  recommendationsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  recommendationText: {
-    fontSize: 13,
-    color: COLORS.text,
-    flex: 1,
-  },
-  modelUsedContainer: {
-    backgroundColor: COLORS.primaryLight,
-    padding: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modelUsedText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
+  actionPlanTitle: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginBottom: 10 },
+  actionItem: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  actionText: { fontSize: 13, color: COLORS.text, flex: 1, lineHeight: 18 },
+  modelUsedContainer: { backgroundColor: COLORS.primaryLight, padding: 8, borderRadius: 8, alignItems: 'center', marginBottom: 16 },
+  modelUsedText: { fontSize: 12, color: COLORS.primary, fontWeight: '600' },
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   saveButton: {
     flex: 2,
     flexDirection: 'row',
@@ -541,14 +445,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
-  savedButton: {
-    backgroundColor: COLORS.textMuted,
-  },
-  saveButtonText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 14,
-  },
+  savedButton: { backgroundColor: COLORS.textMuted },
+  saveButtonText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
   resetButton: {
     flex: 1,
     alignItems: 'center',
@@ -558,30 +456,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
   },
-  resetButtonText: {
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#EBF6F8',
-    borderColor: '#BFE1E7',
-    gap: 12,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    lineHeight: 16,
-  },
+  resetButtonText: { color: COLORS.primary, fontWeight: '600', fontSize: 14 },
+  infoCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#EBF6F8', borderColor: '#BFE1E7', gap: 12 },
+  infoContent: { flex: 1 },
+  infoTitle: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginBottom: 4 },
+  infoText: { fontSize: 12, color: COLORS.primary, lineHeight: 16 },
 });

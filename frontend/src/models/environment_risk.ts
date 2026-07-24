@@ -3,26 +3,53 @@ export interface EnvironmentRisk {
   patientId: string;
   timestamp: string;
   imagePath: string;
-  hasStagnantWater: boolean;
-  hasAnimalFeces: boolean;
-  hasGarbage: boolean;
-  hasUnprotectedWater: boolean;
   riskLevel: 'BAJO' | 'MEDIO' | 'ALTO';
+  positiveMessage: string;
+  risks: {
+    stagnantWater: {
+      detected: boolean;
+      message: string;
+    };
+    animalsNearHome: {
+      detected: boolean;
+      message: string;
+    };
+    garbage: {
+      detected: boolean;
+      message: string;
+    };
+    unprotectedWater: {
+      detected: boolean;
+      message: string;
+    };
+  };
+  actionPlan: string[];
   recommendations: string[];
   synced: boolean;
 }
 
 export const createEnvironmentRisk = (data: Partial<EnvironmentRisk>): EnvironmentRisk => {
+  const defaultRiskMessages = {
+    stagnantWater: { detected: false, message: 'No hay agua estancada.' },
+    animalsNearHome: { detected: false, message: 'Los animales estan lejos.' },
+    garbage: { detected: false, message: 'El area esta limpia.' },
+    unprotectedWater: { detected: false, message: 'El agua esta protegida.' },
+  };
+
   return {
     id: data.id || Date.now().toString(),
     patientId: data.patientId || '',
     timestamp: data.timestamp || new Date().toISOString(),
     imagePath: data.imagePath || '',
-    hasStagnantWater: data.hasStagnantWater || false,
-    hasAnimalFeces: data.hasAnimalFeces || false,
-    hasGarbage: data.hasGarbage || false,
-    hasUnprotectedWater: data.hasUnprotectedWater || false,
     riskLevel: data.riskLevel || 'BAJO',
+    positiveMessage: data.positiveMessage || 'Tu hogar esta en buenas condiciones.',
+    risks: {
+      stagnantWater: data.risks?.stagnantWater || defaultRiskMessages.stagnantWater,
+      animalsNearHome: data.risks?.animalsNearHome || defaultRiskMessages.animalsNearHome,
+      garbage: data.risks?.garbage || defaultRiskMessages.garbage,
+      unprotectedWater: data.risks?.unprotectedWater || defaultRiskMessages.unprotectedWater,
+    },
+    actionPlan: data.actionPlan || ['Mantén el patio limpio cada semana'],
     recommendations: data.recommendations || [],
     synced: data.synced || false,
   };
@@ -33,11 +60,10 @@ export const toJson = (risk: EnvironmentRisk): Record<string, any> => {
     id: risk.id,
     patientId: risk.patientId,
     timestamp: risk.timestamp,
-    hasStagnantWater: risk.hasStagnantWater,
-    hasAnimalFeces: risk.hasAnimalFeces,
-    hasGarbage: risk.hasGarbage,
-    hasUnprotectedWater: risk.hasUnprotectedWater,
     riskLevel: risk.riskLevel,
+    positiveMessage: risk.positiveMessage,
+    risks: risk.risks,
+    actionPlan: risk.actionPlan,
     recommendations: risk.recommendations,
   };
 };
