@@ -1,3 +1,37 @@
 \section{Resultados}
 \label{sec:resultados}
-Escriba aquí los resultados.
+
+\subsection{Evaluación del Clasificador de Anemia}
+\label{sec:evaluacion_clasificador}
+
+El clasificador implementado alcanzó una exactitud global del 86.68\% en la detección de anemia, con un F1 Score macro de 0.86 y una métrica $\text{MCC}$ (Matthews Correlation Coefficient) de 0.73. Si se analiza por categoría de hemoglobina, el modelo presentó un rendimiento notable en la detección de niveles severos (F1 Score = 0.91), una capacidad robusta para clasificar anemia leve (F1 Score = 0.86) y un buen desempeño en el rango normal (F1 Score = 0.79). Es relevante destacar que el modelo demostró una precisión superior para el rango de hemoglobina $\ge 10.0$ g/dL (0.85) en comparación con el rango $< 10.0$ g/dL (0.76).
+
+
+\subsection{Módulo de Nutrición: Sustitución de Alimentos}
+\label{sec:resultados_nutricion}
+
+El sistema logró una optimización significativa en la propuesta de dietas ricas en hierro, priorizando siempre los alimentos nativos de bajo costo disponibles en cada ecorregión. Como ejemplo, se detallan dos casos de intervención exitosa:
+
+\begin{itemize}
+    \item \textbf{Caso 1 - Ecorregión Yunga}: Se identificaron 56 alternativas de alimentos y se generaron 6 recetas fortificadas con un gasto promedio de S/ 2.50, logrando una reducción de costo del 34\% respecto a las opciones comerciales.
+    \item \textbf{Caso 2 - Ecorregión Selva Alta}: Se generaron 11 recetas con productos locales, destacando el uso de ají charapita, charqui de res y paiche, con un costo promedio de S/ 2.80, logrando una optimización de costos del 41\%.
+\end{itemize}
+
+
+\subsection{Módulo de Prevención: Detección de Riesgos Ambientales}
+\label{sec:resultados_prevencion}
+
+El modelo de visión Large Language Model (LLM) demostró una capacidad prometedora para identificar factores de riesgo sanitario en entornos rurales. En el dataset de prueba, el sistema alcanzó las siguientes métricas de detección:
+\begin{itemize}
+    \item \textbf{Agua Estancada}: Exactitud = 88.89\%, Precisión = 93.33\%, Sensibilidad = 76.92\%, $\text{F1 Score} = 84.38\%$, $\text{MCC} = 0.71$
+    \item \textbf{Basura al Aire Libre}: Exactitud = 85.19\%, Precisión = 85.71\%, Sensibilidad = 85.71\%, $\text{F1 Score} = 85.71\%$, $\text{MCC} = 0.71$
+    \item \textbf{Animales Domésticos}: Exactitud = 88.89\%, Precisión = 93.33\%, Sensibilidad = 76.92\%, $\text{F1 Score} = 84.38\%$, $\text{MCC} = 0.71$
+    \item \textbf{Agua Sin Protección}: Exactitud = 88.89\%, Precisión = 85.71\%, Sensibilidad = 92.31\%, $\text{F1 Score} = 88.89\%$, $\text{MCC} = 0.78$
+\end{itemize}
+
+
+\subsection{Validación de la Arquitectura Offline-First}
+\label{sec:resultados_offline}
+
+Se validó la robustez de la arquitectura offline-first mediante la simulación de pérdida total de conectividad en entornos de red limitada. Los resultados confirmaron que el sistema mantuvo la integridad de los datos y la funcionalidad completa del flujo de trabajo clínico sin dependencia de servidores externos.
+

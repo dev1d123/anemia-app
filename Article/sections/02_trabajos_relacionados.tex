@@ -1,3 +1,56 @@
 \section{Trabajos Relacionados}
 \label{sec:trabajos_relacionados}
-Escriba aquí los trabajos relacionados.
+
+Para la construcción y fundamentación teórica de la plataforma propuesta, la literatura relevante se organiza en tres frentes temáticos principales: el diagnóstico no invasivo basado en imágenes ópticas y oculares, la operación móvil y arquitecturas \textit{offline-first} para entornos rurales, y los sistemas de apoyo a decisiones para la prevención y recomendación nutricional. En su conjunto, estos antecedentes demuestran que el diagnóstico de anemia mediante el análisis cromático de regiones mucosas (como la conjuntiva ocular) es técnicamente viable en dispositivos móviles. Sin embargo, la integración holística que combine la inferencia \textit{offline}, la recomendación nutricional adaptada a insumos locales y la sincronización mediante redes de baja conectividad sigue siendo una brecha abierta en el estado del arte.
+
+\subsection{Diagnóstico Ocular No Invasivo}
+Los trabajos focalizados en el módulo de diagnóstico emplean imágenes de la conjuntiva palpebral u otras regiones visibles para estimar la concentración de hemoglobina o clasificar la severidad de la anemia en teléfonos inteligentes. Coinciden ampliamente en que los métodos no invasivos permiten reducir costos, tiempos de espera y la dependencia de infraestructura de laboratorio clínico \cite{chen2024, asare2023, dimauro2022}.
+
+En primer lugar, Chen et al. (2024) \cite{chen2024} desarrollaron una aplicación móvil orientada a la estimación de la hemoglobina a partir de fotografías del párpado inferior capturadas con un \textit{smartphone}. Su contribución principal reside en la implementación de un modelo de red neuronal convolucional altamente compacto, con solo 1.08 millones de parámetros y 0.12 FLOPs(G), diseñado específicamente para optimizar la eficiencia computacional en dispositivos de gama media y baja \cite{chen2024}.
+
+Por su parte, Asare et al. (2023) \cite{asare2023} implementaron un sistema de diagnóstico basado en imágenes de la conjuntiva ocular, logrando métricas de rendimiento clínico destacables: 90\% de sensibilidad, 95\% de especificidad y 92.5\% de exactitud global. No obstante, la arquitectura planteada depende de un servidor remoto configurado con FastAPI para procesar los modelos de visión por computadora, lo que restringe su usabilidad en zonas sin acceso continuo a redes celulares o de banda ancha \cite{asare2023}.
+
+Asimismo, Dimauro et al. (2022) \cite{dimauro2022} propusieron una solución no invasiva apoyada en dispositivos ópticos de bajo costo y publicaron el conjunto de datos abierto \textit{Eyes-defy-anemia}. En su análisis, los autores destacan desafíos metodológicos aún no resueltos en el área, tales como la escasez de \textit{datasets} públicos debidamente anotados y la falta de hardware asequible y estandarizado para su despliegue masivo en salud pública \cite{dimauro2022}.
+
+\subsection{Operación Rural Offline y Arquitecturas Edge}
+La segunda línea de investigación aborda el diseño de sistemas de e-Salud en contextos con conectividad severamente limitada, aspecto crítico para las comunidades rurales de la sierra y selva del Perú. La evidencia empírica indica que múltiples soluciones digitales fracasan en su adopción debido a la dependencia de infraestructura costosa, la baja interoperabilidad de datos y la exigencia de conexión a internet en tiempo real \cite{cruzromero2025, dimitrievski2021}.
+
+Cruz Romero et al. (2025) \cite{cruzromero2025} diseñaron un registro médico electrónico (EHR) portátil con arquitectura \textit{edge} y enfoque \textit{offline-first}. Este sistema utiliza almacenamiento local cifrado y mecanismos de sincronización diferida, e integra un módulo no invasivo para el tamizaje de anemia basado en la palidez de la región ungueal. En sus evaluaciones clínicas, el modelo de predicción de anemia alcanzó un error absoluto medio (MAE) de 1.490 g/dL, un RMSE de 1.969 g/dL y una sensibilidad del 79.2\%. Adicionalmente, implementaron un detector de lecho ungueal mediante YOLOv8n cuantizado, reduciendo la latencia de procesamiento móvil de 46.96 ms a 21.50 ms \cite{cruzromero2025}.
+
+Complementariamente, Dimitrievski et al. (2021) \cite{dimitrievski2021} propusieron una arquitectura de telemedicina rural basada en tecnología LoRa (\textit{Long Range}). Su trabajo se orienta a superar los problemas de telecomunicaciones en zonas aisladas mediante dispositivos de bajo consumo energético, gran alcance de cobertura y costos asequibles, demostrando la factibilidad de transmitir datos de salud esenciales sin recurrir a redes móviles convencionales \cite{dimitrievski2021}.
+
+\subsection{Prevención Nutricional y Sistemas de Decisión}
+La tercera línea aborda los módulos de apoyo al diagnóstico, prevención y seguimiento nutricional. Aunque la literatura es menos abundante en el ámbito específico de la anemia infantil rural, existen antecedentes relevantes sobre sistemas de soporte a decisiones clínicas que combinan la predicción de desnutrición con la generación de recomendaciones dietéticas \cite{maasthi2023}.
+
+Maasthi et al. (2023) \cite{maasthi2023} evaluaron diversos algoritmos de aprendizaje automático, incluyendo Naïve Bayes, Decision Tree, Random Forest y k-NN, para predecir la anemia y la malnutrición. Sus resultados identificaron al modelo Random Forest como el más preciso para la detección de anemia, alcanzando una exactitud del 95.49\%. Como parte de su plataforma, desarrollaron un dispositivo de adquisición de imágenes conjuntivales acoplable a teléfonos inteligentes, que incorpora un módulo de control de calidad previo al análisis para descartar capturas desenfocadas o mal iluminadas \cite{maasthi2023}.
+
+Sin embargo, estos enfoques suelen tratar la recomendación nutricional como un módulo secundario o desligado de la realidad geográfica, sin integración directa con bases de datos de alimentos autóctonos locales ni con protocolos de sincronización descentralizada para operar en zonas rurales aisladas \cite{maasthi2023, dimitrievski2021}.
+
+\subsection{Síntesis Comparativa}
+En la Cuadro~\ref{tab:sintesis_trabajos_relacionados} se presenta una síntesis comparativa de los seis trabajos analizados, contrastando sus principales aportes con respecto a las limitaciones identificadas frente a la plataforma propuesta en este trabajo.
+
+\begin{table*}[t]
+\small
+\caption{Síntesis comparativa de trabajos relacionados frente a la propuesta.}
+\label{tab:sintesis_trabajos_relacionados}
+\centering
+\begin{tabular}{p{3.5cm} p{6.5cm} p{6.5cm}}
+\hline
+\textbf{Trabajo} & \textbf{Aporte principal} & \textbf{Limitación frente a la propuesta} \\
+\hline
+Chen et al. (2024) \cite{chen2024} & Predicción de hemoglobina mediante \textit{smartphone} con modelo compacto (1.08 M params, 0.12 FLOPs). & No enfatiza la operación \textit{offline} en entornos rurales ni la prevención nutricional. \\
+\hline
+Asare et al. (2023) \cite{asare2023} & Detección de anemia por conjuntiva con alta sensibilidad (90\%) y especificidad (95\%). & Requiere servidor remoto (FastAPI) y no ofrece funcionalidad \textit{offline-first}. \\
+\hline
+Dimauro et al. (2022) \cite{dimauro2022} & Sistema no invasivo y publicación del \textit{dataset} abierto \textit{Eyes-defy-anemia}. & No integra prevención nutricional personalizada ni estrategias de conectividad rural. \\
+\hline
+Cruz Romero et al. (2025) \cite{cruzromero2025} & Plataforma \textit{edge/offline} con tamizaje de anemia y cuantización YOLOv8n. & Evalúa palidez ungueal (no conjuntiva ocular) y no personaliza dietas con insumos locales. \\
+\hline
+Dimitrievski et al. (2021) \cite{dimitrievski2021} & Arquitectura de red LoRa para e-Salud rural con bajo consumo energético. & No está enfocado en anemia infantil ni en procesamiento de visión por computadora. \\
+\hline
+Maasthi et al. (2023) \cite{maasthi2023} & Predicción de anemia y malnutrición con Random Forest (95.49\%) y captura ocular. & No contempla un funcionamiento totalmente \textit{offline} ni adaptado a ecorregiones peruanas. \\
+\hline
+\end{tabular}
+\end{table*}
+
+En conclusión, la revisión de la literatura evidencia un avance significativo en los pilares individuales de diagnóstico óptico no invasivo, salud digital en el borde y sistemas de recomendación nutricional. Sin embargo, existe una brecha clara en la integración coordinada de estos tres componentes dentro de un único sistema móvil \textit{offline-first}, diseñado específicamente para la realidad epidemiológica y geográfica de las zonas rurales del Perú.

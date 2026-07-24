@@ -1,3 +1,19 @@
 \section{Limitaciones y Trabajos Futuros}
 \label{sec:limitaciones}
-Escriba aquí las limitaciones y trabajos futuros.
+
+A pesar de los resultados alentadores del ecosistema digital, se identificaron limitaciones operativas y metodológicas que abren caminos para futuras investigaciones:
+
+\subsection{Limitaciones del Sistema}
+\begin{itemize}
+    \item \textbf{Sensibilidad a Condiciones Ópticas}: La precisión del análisis cromático de la conjuntiva palpebral en el dispositivo móvil es susceptible a variaciones extremas en la iluminación ambiental (luz solar directa frente a sombra o luz artificial deficiente) y a la calidad óptica de los sensores de los teléfonos inteligentes de gama baja. Aunque el componente \texttt{imageProcessor} normaliza las imágenes a $224 \times 224$ píxeles y extrae índices relativos, la distorsión cromática residual puede alterar los valores calculados de rojez ($RI$) y palidez ($PI$).
+    \item \textbf{Dependencia de Conectividad para Análisis de Visión Complejo}: Aunque el tamizaje de anemia y el recomendador nutricional funcionan 100\% offline mediante inferencia heurística y SQLite, la detección avanzada de riesgos sanitarios mediante el modelo de visión (\texttt{gemma\_service}) requiere de conectividad externa a la API de OpenRouter. En ausencia absoluta de red, el sistema recurre a una simulación heurística local simplificada, reduciendo el alcance del análisis preventivo en campo.
+    \item \textbf{Generalización Demográfica}: El modelo de inferencia ha sido calibrado y evaluado principalmente con muestras de la población rural andina y amazónica peruana. Se requiere mayor validación en grupos de población con diferentes fototipos cutáneos e historias clínicas diversas para consolidar su generalización clínica global.
+\end{itemize}
+
+\subsection{Trabajos Futuros}
+\begin{itemize}
+    \item \textbf{Modelos de Visión On-Device y Ligeros}: Se proyecta la integración de modelos de visión computacional extremadamente compactos (como versiones cuantizadas de Gemma 2B o MobileNet fine-tuned) ejecutándose de manera nativa e integrada en el cliente mediante ONNX Runtime Mobile o TensorFlow Lite. Esto posibilitará un análisis preventivo de riesgos sanitarios ambientales en tiempo real y de forma 100\% local, sin dependencia alguna de APIs externas en la nube.
+    \item \textbf{Tarjeta de Calibración Cromática}: Diseñar e incorporar una pequeña tarjeta física de calibración de color (Color Card) que el personal de salud coloque cerca del ojo del paciente durante la captura fotográfica. Esto permitirá al software corregir de forma algorítmica las variaciones cromáticas de iluminación ambiental y de sensores, estandarizando los canales RGB de la imagen antes del cálculo de los índices.
+    \item \textbf{Estudios Clínicos Longitudinales}: Planificar y ejecutar estudios de campo controlados en comunidades rurales peruanas a largo plazo (6 a 12 meses) para medir el impacto real de las recomendaciones dietéticas personalizadas y las alertas ambientales en la reducción del índice de anemia infantil ferropénica.
+\end{itemize}
+

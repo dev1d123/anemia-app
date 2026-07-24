@@ -3,7 +3,24 @@
 
 \subsection{Arquitectura del Sistema}
 \label{sec:arquitectura}
-Escriba aquí la descripción general de la arquitectura del sistema.
+
+El sistema propuesto está diseñado bajo un enfoque de intervención digital offline-first, estructurado en un monorepo que integra un cliente móvil híbrido y un servidor centralizado descentralizado para nodos mesh:
+
+\begin{enumerate}
+    \item \textbf{Cliente Móvil (Frontend)}: Desarrollado en React Native con la suite Expo, garantizando portabilidad multiplataforma (Android, iOS y web). Su arquitectura interna se desacopla en servicios especializados:
+    \begin{itemize}
+        \item \texttt{imageProcessor.ts}: Procesa las imágenes capturadas con la cámara del dispositivo, aplicando normalización de resolución ($224 \times 224$ píxeles mediante \texttt{expo-image-manipulator}) y muestreo de color en formato Base64.
+        \item \texttt{inferenceEngine.ts}: Motor local de predicción heurística que evalúa de forma inmediata los índices de rojez y palidez de la conjuntiva palpebral, ajustándolos por factores fisiológicos (edad, antecedentes clínicos) para determinar el nivel de hemoglobina sin necesidad de conectividad.
+        \item \texttt{dbService.ts}: Administra una base de datos relacional local en SQLite (\texttt{expo-sqlite}) con llaves foráneas activas, estructurando las tablas de pacientes, ecorregiones del Perú, alimentos, sustituciones nutricionales, historial de dietas y logs de diagnóstico.
+        \item \texttt{gemma\_service.ts} y \texttt{risk\_analyzer.ts}: Servicios que interactúan con un LLM de visión (Gemma 2/4 vision embebido o a través del endpoint OpenRouter, y una simulación heurística local como fallback) para clasificar y reportar vectores de riesgo sanitario ambiental (agua estancada, basura, animales, agua desprotegida).
+    \end{itemize}
+    \item \textbf{Servidor Centralizado (Backend)}: Desarrollado en Node.js y Express con TypeScript. Expone servicios RESTful para:
+    \begin{itemize}
+        \item \texttt{sync.controller.ts} (\texttt{/api/sync}): Recepciona los registros acumulados offline por los nodos de la red local (mesh), y responde con metadatos de control y la versión más reciente del modelo activo de IA disponible en el registro.
+        \item \texttt{driftDetector.ts} (\texttt{/api/telemetry}): Módulo analítico que monitorea el desempeño del clasificador móvil a través de la comparación de estimaciones frente a valores clínicos de laboratorio. Si la exactitud global o el F1 Score macro desciende del 80\%, el detector marca la alerta de deriva (\texttt{driftDetected = true}) para activar el reajuste del modelo.
+        \item \texttt{modelRegistry.ts}: Repositorio centralizado que gestiona las versiones activas de los binarios de IA (ej., clasificador de conjuntiva ocular en formato ONNX v1.2.0, y recomendadores de de dieta y prevención en formato JSON v1.0.1).
+    \end{itemize}
+\end{enumerate}
 
 \input{sections/03_modulo_diagnostico}
 \input{sections/03_modulo_nutricion}
@@ -11,8 +28,22 @@ Escriba aquí la descripción general de la arquitectura del sistema.
 
 \subsection{Conjunto de Datos}
 \label{sec:dataset}
-Escriba aquí la descripción del dataset utilizado.
+
+El funcionamiento del sistema se sustenta en tres conjuntos de datos de referencia y de trabajo diferenciados según el módulo de aplicación:
+\begin{enumerate}
+    \item \textbf{Dataset de Diagnóstico Ocular}: Comprende una base de imágenes de la conjuntiva tarsal del párpado inferior humano. Estas muestras ópticas están etiquetadas con la concentración real de hemoglobina (g/dL) obtenida a través de hemogramas de laboratorio clínico (gold-standard). Las clasificaciones se segmentan siguiendo los umbrales de la Organización Mundial de la Salud (OMS) para anemia (Severa, Moderada, Normal) ajustados por grupo etario (infantes de 6 a 59 meses, niños de 5 a 11 años y adolescentes de 12 a 14 años).
+    \item \textbf{Dataset Nutricional Regional}: Compuesto por 15 alimentos peruanos representativos de alto valor nutricional y bajo costo, cuyos perfiles físico-químicos se extrajeron de las Tablas Peruanas de Composición de Alimentos (TPCA) publicadas por el Instituto Nacional de Salud (INS)~\cite{INS2023}. Estos alimentos están mapeados geográficamente a las 11 Ecorregiones del Perú (Antonio Brack Egg)~\cite{brack1986ecorregiones} en la base de datos SQLite para reflejar la disponibilidad real en el entorno del paciente.
+    \item \textbf{Dataset de Riesgo Sanitario (Prevención)}: Un conjunto de imágenes domésticas de entornos rurales (patios, cocinas, fuentes de agua) anotadas con la presencia o ausencia de cuatro vectores ambientales específicos de parasitosis y diarreas infantiles: agua estancada, acumulación de basura al aire libre, presencia de animales domésticos/de granja cerca de la preparación de alimentos, y depósitos de agua de consumo sin protección.
+\end{enumerate}
 
 \subsection{Metodología Propuesta}
 \label{sec:metodologia}
-Escriba aquí la metodología propuesta.
+
+La metodología propuesta para la intervención y monitoreo continuo contra la anemia infantil se ejecuta a través de un flujo de cinco fases integradas de forma local y remota:
+\begin{enumerate}
+    \item \textbf{Fase 1: Tamizaje Clínico No Invasivo}: El personal de salud rural captura una fotografía del párpado inferior expuesto del niño. El componente \texttt{imageProcessor} redimensiona la imagen a $224 \times 224$ píxeles y calcula los índices ópticos de Rojez ($RI$) y Palidez ($PI$) a partir de los canales RGB de la conjuntiva palpebral.
+    \item \textbf{Fase 2: Estimación de Hemoglobina Embebida}: El motor \texttt{inferenceEngine} procesa los índices ópticos y aplica correcciones basadas en variables clínicas. El índice de rojez se mapea linealmente entre 7.5 y 13.5 g/dL, penalizando el resultado si el índice de palidez es alto ($PI > 75$). Adicionalmente, el resultado es modificado según la tendencia histórica del paciente en SQLite (aplicando penalizaciones de hasta -1.2 g/dL si el estado previo es severo) y ponderado por un factor etario pediátrico, emitiendo una clasificación de anemia con un nivel estocástico de confianza.
+    \item \textbf{Fase 3: Intervención Nutricional y Económica}: El módulo de nutrición consulta las tablas de SQLite y extrae los alimentos nativos y de bajo costo disponibles en la ecorregión del paciente. Si se detecta anemia, filtra insumos con alto contenido de hierro hemínico y sugiere recetas fortificadas (ej., papillas de hígado, sangrecita), calculando de forma automática sustituciones inteligentes de ingredientes costosos por alternativas de alta disponibilidad local y menor precio para reducir el gasto familiar.
+    \item \textbf{Fase 4: Análisis Visual Preventivo del Entorno}: El usuario toma una fotografía del patio o cocina rural. El servicio \texttt{gemma\_service} envía la imagen junto con un prompt estructurado al LLM de visión para identificar focos insalubres. El sistema genera un reporte cualitativo detallado (Riesgo Bajo, Medio o Alto) y un plan de acción higiénico específico para evitar la proliferación de parásitos y el dengue.
+    \item \textbf{Fase 5: Sincronización y Detección de Deriva (Drift)}: Los datos de tamizaje, dietas y prevención se resguardan de forma persistente y offline en SQLite. Al detectar conexión con un nodo mesh, el cliente sincroniza los registros con el servidor central mediante el controlador de sincronización. Con el tiempo, el backend procesa telemetría de validación contrastando predicciones móviles versus resultados de laboratorio clínico; si se detecta deriva del modelo (exactitud $< 0.80$), se emite una alerta para recalibrar o actualizar los coeficientes locales.
+\end{enumerate}
